@@ -6,17 +6,16 @@ JACDAC is a single wire serial protocol for the plug and play of accessories for
 
 ## Why do we need _another_ protocol?
 
-Imagine a scenario you'd like to connect two of the same board (with on-board peripherals) to talk one another over a wire. Your options are:
+Conventionally SPI and I2C are used to communicate with other devices over a wire. I2C and SPI principally work in Central/Peripheral (used in place of outdated Master/Slave terminology) mode: One central directs the operation of all peripherals, configuring and interrogating them as desired.
 
-### 1. Use I2C or SPI
+I2C uses static addresses for all components i.e. all MMA8653 accelerometers will have the same address. Each I2C component specifies its own register map and registers can be directly accessed by combining the component's address and register offset. I2C requires two wires to operate: _SCL_ to synchronise the communication speed, and _SDA_ for data payloads.
 
-Both of these protocols are very low-level and use static addresses to configure registers. They each rely on there being a single _central_ device that controls all connected _peripherals_ on the bus; multi-master scenarios are barely supported. Connecting two of the same boards together will result in addressing conflicts due to static addresses and competition over peripherals. Sidestepping this issue, how would you design an elegant peer-to-peer networking interface using I2c or SPI?
+Instead of static addressing, SPI uses the peripheral select wire to indicate the peripheral to be accessed. SPI components require register offsets to be communicated over the MOSI (Central out peripheral in) line, and the selected peripheral responds using the MISO (Central in peripheral out) line. Multi-central modes for SPI and I2C are not well-supported.
 
-### 2. Create a Custom Serial Protocol
+Peer-to-peer scenarios are common place in the world of the Internet of Things (IoT): programmers often want to share data with other devices in the vicinity. But what solution is available for sharing data locally through wired communications? I2C or SPI cannot be used because of their communication topology (single Central only) and addressing approaches––if you connected two devices with the same components through joining buses, how are addresses resolved? Alternatively one could develop a custom UART based protocol from scratch, or, one could add ethernet capabilities to a device and run IPv4, requiring extra hardware and consuming precious RAM.
 
-Due to the static nature of SPI and I2C, the next best option is to create a custom serial protocol for peer-to-peer networks of devices over a wire. In implementing a custom serial protocol, design of bus arbitration and resolution, and reliability will have to be carefully considered. Realising a custom protocol will require a lot of work and result in potentially non-reusable, application specific code.
+JACDAC requires _no additional hardware to operate_ as it is built on UART, supported in hardware by all modern processors. Peer to peer scenarios are supported through a _broadcast topology_ where every device is a Central. Only _a single wire_ is required as communications are fixed to 1 mBaud.
 
-### 3. Go wireless
+## A broadcast paradigm
 
-Simply adding a dongle to your board will allow you to network using higher level abstractions like http, or tcp sockets. However, this will add cost and complexity to your project.
-
+![image of devices in a broadcast formation](images/bus.svg)
