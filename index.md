@@ -138,9 +138,9 @@ A JDDevice contains driver state used in `ControlPackets`. The _rolling_counter_
 
 While modelling every driver as a Central is one of the key design decisions of JACDAC, it would be naive to suggest that a broadcast communication paradigm is ideal in every scenario. However, basing JACDAC on a broadcast paradigm allows other communication paradigms to be added. Therefore, JACDAC supports three communication paradigms:
 
-1. Virtual –– Many centrals, single peripheral.
-2. Paired –– Single central, single peripheral.
-3. Broadcast –– Many centrals, many peripherals.
+1. __Virtual__ –– Many central, single peripheral.
+2. __Paired__ –– Single central, single peripheral.
+3. __Broadcast__ –– Many central, many peripheral.
 
 An attentive reader may realise that one communication paradigm is missing: Single central, many peripheral; in JACDAC this is realised through many Paired connections.
 
@@ -148,9 +148,19 @@ An attentive reader may realise that one communication paradigm is missing: Sing
 
 ![image of drivers in a virtual mode](images/virtual.svg)
 
+The diagram shows three devices two in virtual mode, with one device acting as the "host" of the pin driver.
+
+Virtual drivers are stubs that perform operations on a remote host; they are uninitialised until a control packet matching the class is seen on the bus. They are then populated with the host drivers' information after receiving a control packet. Virtual drivers emit no control packets as they are not hosting a resource. If a host disappears, virtual drivers are set to their uninitialised state.
+
+If a virtual driver would like to use a specific driver, a serial number can optionally be specified––only the matched driver will be mounted. Alternate methods of mounting virtual drivers should be handled in drivers by placing additional information in driver control packets.
+
 #### Paired Mode
 
 ![image of drivers in a paired mode](images/paired.svg)
+
+In Paired mode, two devices are paired.
+
+PairedHost PairedVirtual PairedHost
 
 #### Broadcast Mode
 
