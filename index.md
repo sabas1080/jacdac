@@ -119,7 +119,7 @@ class JDDriver : public CodalComponent
 };
 ```
 
-The device member variable is accessed by the logic driver to keep track of the state of an operating driver. The remaining member functions are invoked by the logic driver. fillControlPacket is called when the logic driver is queueing the drivers' control packet to be sent; handleControlPacket is called when a control packet is received; handlePairingPacket is called when a ControlPacket with its type set to pairing is received; and handlePacket which invoked whenever a packet is seen with the drivers address.
+The device member variable is accessed by the logic driver to keep track of the state of an operating driver. The remaining member functions are invoked by the logic driver: `fillControlPacket`, invoked when the logic driver is queueing the drivers' control packet, allows driver specific information to be added; `handleControlPacket` is invoked when a matching control packet is received; `handlePairingPacket` is called when a pairing ControlPacket is received; and `handlePacket` is invoked whenever a packet is seen with the drivers address.
 
 ```cpp
 struct JDDevice
@@ -132,9 +132,17 @@ struct JDDevice
 };
 ```
 
-A JDDevice contains driver state, as listed above. The _rolling_counter_ field is used by the logic driver to trigger various control packet events. The address of a driver is set by the logic driver and stored in the address field.
+A JDDevice contains driver state used in `ControlPackets`. The _rolling_counter_ field is used by the logic driver to trigger various control packet events. The address of a driver is set by the logic driver and stored in the _address_ field. Various constructors are available for this struct, please visit the API documentation.
 
 ### Driver Paradigms
+
+While modelling every driver as a Central is one of the key design decisions of JACDAC, it would be naive to suggest that a broadcast communication paradigm is ideal in every scenario. However, basing JACDAC on a broadcast paradigm allows other communication paradigms to be added. Therefore, JACDAC supports three communication paradigms:
+
+1. Virtual –– Many centrals, single peripheral.
+2. Paired –– Single central, single peripheral.
+3. Broadcast –– Many centrals, many peripherals.
+
+An attentive reader may realise that one communication paradigm is missing: Single central, many peripheral; in JACDAC this is realised through many Paired connections.
 
 #### Virtual Mode
 
