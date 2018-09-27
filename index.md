@@ -30,9 +30,9 @@ The process described is visualised in the image above. The bus is high for a pe
 
 ## A broadcast paradigm
 
-![image of devices in a broadcast formation](images/bus.svg)
+![image of devices in a broadcast topology](images/bus.svg)
 
-The image above shows JACDAC devices in a broadcast formation. Each device has a simple stack featuring: (1) a physical layer handling the transmission and reception of packets; (2) a logic layer which performs the routing of packets; to (3) device drivers running on the device. All devices are connected to a shared bus.
+The image above shows JACDAC devices in the only supported topology: broadcast. Each device has a simple stack featuring: (1) a physical layer handling the transmission and reception of packets; (2) a logic layer which performs the routing of packets; to (3) device drivers running on the device. Devices are not modelled in JACDAC, instead devices expose drivers; a JACDAC device consists of 1 or more drivers. All devices are connected to a shared bus.
 
 Since the physical layer has been discussed previously, we move onto the logic layer
 
@@ -90,10 +90,51 @@ Addresses are allocated by the logic driver and are initially computed by avoidi
 
 It is likely that two separate buses may be joined by a user. When this happens, addresses are resolved simply by a first-come-first-serve policy: the first device to transmit a `ControlPacket` with an address absolutely owns that address. Any device that exists on the joined bus with the same address must respect this and change address accordingly.
 
-Connecting a new driver is handled simply, the first control packet after the address allocation period is deemed "connected". A disconnected driver is determined by the absence of two consecutive control packets (a period of 1 second).
+Connecting a new driver is handled simply: the first control packet after the address allocation period is deemed "connected". A disconnected driver is determined by the absence of two consecutive control packets (a period of 1 second).
 
-## Driver Paradigms
+## Drivers
 
+Drivers build on the logic layer and expose usable APIs to the application programmer. Every driver has a class identifying the type of driver––multiple drivers can use the same class, but this behaviour should be handled by driver code. A unique serial number should be assigned to each driver, this is automatically performed by combining the device serial number and driver class.
+
+At the software level, JACDAC drivers should subclass JDDriver:
+
+```cpp
+class JDDriver : public CodalComponent
+{
+    protected:
+    JDDevice device;
+
+    ...
+
+    public:
+    JDDriver(JDDevice d);
+
+    virtual int fillControlPacket(JDPkt* p);
+
+    virtual int handleControlPacket(JDPkt* p);
+
+    virtual int handlePairingPacket(JDPkt* p);
+
+    virtual int handlePacket(JDPkt* p);
+};
+```
+
+The device member variable is accessed by the logic driver to keep track of the state of an operating driver. The remaining member functions are invoked by the logic driver. fillControlPacket is called when the logic driver is queueing the drivers' control packet to be sent; handleControlPacket is called when a control packet is received; handlePairingPacket is called when a ControlPacket with its type set to pairing is received; and handlePacket which invoked whenever a packet is seen with the drivers address.
+
+```cpp
+struct JDDevice
+{
+    uint8_t address;
+    uint8_t rolling_counter;
+    uint16_t flags;
+    uint32_t serial_number;
+    uint32_t driver_class;
+};
+```
+
+A JDDevice contains driver state, as listed above. The _rolling_counter_ field is used by the logic driver to trigger various control packet events. The address of a driver is set by the logic driver and stored in the address field.
+
+### Driver Paradigms
 
 #### Virtual Mode
 
