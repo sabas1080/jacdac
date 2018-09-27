@@ -38,7 +38,7 @@ Since the physical layer has been discussed previously, we move onto the logic l
 
 ### The Logic Layer
 
-A JACDAC packet is simple, consisting of:
+A JACDAC packet is simple, consisting of: a cyclic redundancy check (crc) to provide guarantees of packet consistency; an address indicating the source _or_ destination address of a driver; the size of the data field; and finally the data payload.
 
 ```cpp
 struct JDPkt
@@ -50,15 +50,13 @@ struct JDPkt
 }
 ```
 
-The cyclic redundancy check (crc) value provides guarantees of packet consistency. The address field of the packet indicates the source _or_ destination address of a driver. The size field is the number of bytes in data. And data contains a driver payload.
-
 #### Routing a packet
 
 With the limited information in the packet above, how do packets get routed to their destination?
 
-So not to fill all packets with unnecessary metadata, JACDAC devices broadcast driver information every 500 milliseconds. All devices receive this information providing a mapping from a small 8-bit address to a fully enumerated driver. Conveniently, this also allows the detection of the addition or removal of drivers from the bus.
+So to not to fill all packets with unnecessary metadata, JACDAC devices broadcast driver information every 500 milliseconds. All devices receive this information providing a mapping from a small 8-bit address to a fully enumerated driver. Conveniently, this also allows the detection of the addition or removal of drivers from the bus.
 
-A special packet type is embedded inside a standard JACDAC packet, referred to as a `ControlPacket`. A `ControlPacket` looks like this:
+Driver information is shared using a special packet type called a `ControlPacket`, which is embedded inside a standard JACDAC packet. A `ControlPacket` contains: a _packet_type_, used to differentiate between types of control packet; an _address_, which should be the same address that is used in a standard packet; any _flags_ specified by the driver (the upper eight bits of which are reserved for the logic layer); a _driver_class_ used to indicate the type of driver it is (i.e. a Joystick); a _serial_number_ that uniquely identifies a driver; and finally any additional payload information specified by the driver.
 
 ```cpp
 struct ControlPacket
