@@ -32,15 +32,54 @@ The process described is visualised in the image above. The bus is high for a pe
 
 ![image of devices in a broadcast formation](images/bus.svg)
 
+The image above shows JACDAC devices in a broadcast formation. Each device has a simple stack featuring: (1) a physical layer handling the transmission and reception of packets; (2) a logic layer which performs the routing of packets; to (3) device drivers running on the device.
 
-### Virtual Mode
+Since the physical layer has been discussed previously, we move onto the logic layer
 
-![image of devices in a virtual mode](images/virtual.svg)
+### The Logic Layer
 
-### Paired Mode
+A JACDAC packet is simple, consisting of:
 
-![image of devices in a paired mode](images/paired.svg)
+```cpp
+struct JDPkt
+{
+    uint16_t crc;
+    uint8_t address;
+    uint8_t size;
+    uint8_t data[32];
+}
+```
 
-### Broadcast Mode
+The cyclic redundancy check (crc) value provides guarantees of packet consistency. The address field of the packet indicates the source _or_ destination address of a driver. The size field is the number of bytes in data. And data contains a driver payload.
 
-![image of devices in a broadcast mode](images/broadcast.svg)
+#### Routing a packet
+
+With the limited information in the packet above, how do packets get routed to their destination?
+
+So not to fill all packets with unnecessary metadata, JACDAC devices broadcast driver information every 500 milliseconds. All devices receive this information providing a mapping from a small 8-bit address to a fully enumerated driver. Conveniently, this also allows the detection of the addition or removal of drivers from the bus.
+
+A special packet type is embedded inside a standard JACDAC packet, referred to as a `ControlPacket`. A `ControlPacket` looks like this:
+
+```cpp
+struct ControlPacket
+{
+    uint8_t packet_type;
+    uint8_t address;
+    uint16_t flags;
+    uint32_t driver_class;
+    uint32_t serial_number;
+    uint8_t data[20];
+};
+```
+
+#### Virtual Mode
+
+![image of drivers in a virtual mode](images/virtual.svg)
+
+#### Paired Mode
+
+![image of drivers in a paired mode](images/paired.svg)
+
+#### Broadcast Mode
+
+![image of drivers in a broadcast mode](images/broadcast.svg)
