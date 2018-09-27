@@ -38,7 +38,7 @@ Since the physical layer has been discussed previously, we move onto the logic l
 
 ### The Logic Layer
 
-A JACDAC packet is simple, consisting of: a cyclic redundancy check (crc) to provide guarantees of packet consistency; an address indicating the source _or_ destination address of a driver; the size of the data field; and finally the data payload.
+A JACDAC packet is simple, consisting of: a _crc_ (cyclic redundancy check) to provide guarantees of packet consistency; an _address_ indicating the source _or_ destination address of a driver; the _size_ of the data field; and finally the _data_ payload specified by a driver.
 
 ```cpp
 struct JDPkt
