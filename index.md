@@ -32,43 +32,68 @@ The process described is visualised in the image above. The bus is high for a pe
 
 ![image of devices in a broadcast formation](images/bus.svg)
 
-The image above shows JACDAC devices in a broadcast formation. Each device has a simple stack featuring: (1) a physical layer handling the transmission and reception of packets; (2) a logic layer which performs the routing of packets; to (3) device drivers running on the device.
+The image above shows JACDAC devices in a broadcast formation. Each device has a simple stack featuring: (1) a physical layer handling the transmission and reception of packets; (2) a logic layer which performs the routing of packets; to (3) device drivers running on the device. All devices are connected to a shared bus.
 
 Since the physical layer has been discussed previously, we move onto the logic layer
 
 ### The Logic Layer
 
-A JACDAC packet is simple, consisting of: a _crc_ (cyclic redundancy check) to provide guarantees of packet consistency; an _address_ indicating the source _or_ destination address of a driver; the _size_ of the data field; and finally the _data_ payload specified by a driver.
+The logic layer is formed of three elements:
+
+1. Packets that are sent using the physical layer.
+2. On device routing to a destination driver.
+3. A logic driver to handle device enumeration.
+
+#### Packet Structure
+
+A JACDAC packet is simple, consisting of: a _crc_ (cyclic redundancy check) to provide guarantees of packet consistency; an _address_ indicating the source _or_ destination address of a driver; the _size_ of the data field; and finally the _data_ payload specified by a driver. When a packet is received, the protocol will route packets to the driver with the given address.
 
 ```cpp
 struct JDPkt
 {
     uint16_t crc;
-    uint8_t address;
-    uint8_t size;
-    uint8_t data[32];
+    uint8_t  address;
+    uint8_t  size;
+    uint8_t  data[32];
 }
 ```
 
 #### Routing a packet
 
-With the limited information in the packet above, how do packets get routed to their destination?
+With the limited information in the packet above, how do packets reach their destination?
 
-So to not to fill all packets with unnecessary metadata, JACDAC devices broadcast driver information every 500 milliseconds. All devices receive this information providing a mapping from a small 8-bit address to a fully enumerated driver. Conveniently, this also allows the detection of the addition or removal of drivers from the bus.
+So to not to fill all packets with unnecessary metadata, JACDAC devices broadcast driver information every 500 milliseconds. All devices receive this information providing a mapping from a small 8-bit address to a fully enumerated driver. Conveniently, this also allows the detection of when drivers are connected or disconnected from the bus.
 
 Driver information is shared using a special packet type called a `ControlPacket`, which is embedded inside a standard JACDAC packet. A `ControlPacket` contains: a _packet_type_, used to differentiate between types of control packet; an _address_, which should be the same address that is used in a standard packet; any _flags_ specified by the driver (the upper eight bits of which are reserved for the logic layer); a _driver_class_ used to indicate the type of driver it is (i.e. a Joystick); a _serial_number_ that uniquely identifies a driver; and finally any additional payload information specified by the driver.
 
 ```cpp
 struct ControlPacket
 {
-    uint8_t packet_type;
-    uint8_t address;
+    uint8_t  packet_type;
+    uint8_t  address;
     uint16_t flags;
     uint32_t driver_class;
     uint32_t serial_number;
-    uint8_t data[20];
+    uint8_t  data[20];
 };
 ```
+
+Standard and `ControlPackets` form the basis of the JACDAC protocol.
+
+#### The Logic Driver
+
+The logic driver is responsible for managing address allocation and conflicts, and for signalling that devices have been connected or removed from the bus. On *all* JACDAC devices, the logic driver resides on address zero.
+
+The logic driver only receives `ControlPackets`; other drivers receive `ControlPackets` indirectly after the packet is processed by the logic driver. It then follows that all `ControlPackets` have the address zero, so to address *all* logic drivers connected to the bus.
+
+Addresses are allocated by the logic driver and are initially computed by avoiding addresses already allocated on the bus. There is a 1 second (2 control packets) grace period where a driver control packet flags itself as uncertain. If during this period an address is contended, the uncertain driver must change it's address.
+
+It is likely that two separate buses may be joined by a user. When this happens, addresses are resolved simply by a first-come-first-serve policy: the first device to transmit a `ControlPacket` with an address absolutely owns that address. Any device that exists on the joined bus with the same address must respect this and change address accordingly.
+
+Connecting a new driver is handled simply, the first control packet after the address allocation period is deemed "connected". A disconnected driver is determined by the absence of two consecutive control packets (a period of 1 second).
+
+## Driver Paradigms
+
 
 #### Virtual Mode
 
