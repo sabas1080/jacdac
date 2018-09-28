@@ -150,17 +150,19 @@ An attentive reader may realise that one communication paradigm is missing: Sing
 
 The diagram shows three devices two in virtual mode, with one device acting as the "host" of the pin driver.
 
-Virtual drivers are stubs that perform operations on a remote host; they are uninitialised until a control packet matching the class is seen on the bus. They are then populated with the host drivers' information after receiving a control packet. Virtual drivers emit no control packets as they are not hosting a resource. If a host disappears, virtual drivers are set to their uninitialised state.
+Virtual drivers are stubs that perform operations on a remote host; they are uninitialised until a control packet matching the class is seen on the bus. They are then populated with the host drivers' information after receiving a matching control packet. Virtual drivers emit no control packets as they are not hosting a resource. If a host disappears, virtual drivers are set to their uninitialised state.
 
-If a virtual driver would like to use a specific driver, a serial number can optionally be specified––only the matched driver will be mounted. Alternate methods of mounting virtual drivers should be handled in drivers by placing additional information in driver control packets.
+If a virtual driver would like to use a certain driver, a serial number can optionally be specified––only the matched driver will be mounted. Alternate methods of mounting virtual drivers should be handled in software by placing additional information in driver control packets.
 
 #### Paired Mode
 
 ![image of drivers in a paired mode](images/paired.svg)
 
-In Paired mode, two devices are paired.
+In Paired mode, two drivers are notionally bonded to each other at the software level. The image depicts three drivers, two are paired and the other is uninitialised. It is important to note that when two drivers are paired, the logic driver on other devices ignores packets until they are unpaired––hence why the virtual driver is not initialised.
 
-PairedHost PairedVirtual PairedHost
+When paired to another driver, JDDrivers create a Virtual stub of their partner and can observe standard packets emitted by them. Drivers should guarantee that when paired, only their partner can access and configure them. The Virtual stub allows connection events to be detected and handled.
+
+In the diagram, it should also be noted that the Paired driver is a Virtual stub with its own address. All API calls via the virtual stub are sent using the VirtualStubs _own address_; the PairedHost receives _packets from its partner_ and can act accordingly.
 
 #### Broadcast Mode
 
