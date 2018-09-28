@@ -150,6 +150,8 @@ An attentive reader may realise that one communication paradigm is missing: Sing
 
 The diagram shows three devices two in virtual mode, with one device acting as the "host" of the pin driver.
 
+**talk about PinDriver**
+
 Virtual drivers are stubs that perform operations on a remote host; they are uninitialised until a control packet matching the class is seen on the bus. They are then populated with the host drivers' information after receiving a matching control packet. Virtual drivers emit no control packets as they are not hosting a resource. If a host disappears, virtual drivers are set to their uninitialised state.
 
 If a virtual driver would like to use a certain driver, a serial number can optionally be specified––only the matched driver will be mounted. Alternate methods of mounting virtual drivers should be handled in software by placing additional information in driver control packets.
@@ -164,6 +166,12 @@ When paired to another driver, JDDrivers create a Virtual stub of their partner 
 
 In the diagram, it should also be noted that the Paired driver is a Virtual stub with its own address. All API calls via the virtual stub are sent using the VirtualStubs _own address_; the PairedHost receives _packets from its partner_ and can act accordingly.
 
+__Need to solidify addressing, it's currently not clear how it all fits together... need to write about the fact that because packets are received by a host driver using its own address it can infer that the packet came externally, addressing diagrams might be useful__
+
 #### Broadcast Mode
 
 ![image of drivers in a broadcast mode](images/broadcast.svg)
+
+This diagram shows three drivers running the MessageBus driver in Broadcast mode. A message bus shares primitive event information via a shared bus, in this case, JACDAC. Each driver is enumerated on the bus––this allows the source of an event to be determined by the MessageBus driver if required.
+
+The key difference in this mode is how packets are routed: _packets are matched on their class, rather than their address_. Broadcast mode can be combined with either of the previous modes already mentioned.
