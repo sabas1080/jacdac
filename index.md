@@ -94,7 +94,7 @@ Connecting a new driver is handled simply: the first control packet after the ad
 
 ## Drivers
 
-Drivers build on the logic layer and expose usable APIs to the application programmer. Every driver has a class identifying the type of driver––multiple drivers can use the same class, but this behaviour should be handled by driver code. A unique serial number should be assigned to each driver, this is automatically performed by combining the device serial number and driver class.
+Drivers build on the logic layer and expose usable APIs to the application programmer. Every driver has a class identifying the type of driver and a unique serial number to identify the driver––this is automatically performed by combining the device serial number and driver class.
 
 At the software level, JACDAC drivers should subclass JDDriver:
 
@@ -136,7 +136,7 @@ A JDDevice contains driver state used in `ControlPackets`. The _rolling_counter_
 
 ### Driver Paradigms
 
-While modelling every driver as a Central is one of the key design decisions of JACDAC, it would be naive to suggest that a broadcast communication paradigm is ideal in every scenario. However, basing JACDAC on a broadcast paradigm allows other communication paradigms to be added. Therefore, JACDAC supports three communication paradigms:
+While modelling every driver as a Central is one of the key design decisions of JACDAC, it would be naive to suggest that a broadcast communication paradigm is ideal in every scenario. However, basing JACDAC on a broadcast paradigm allows other communication paradigms to be layered on top. Therefore, JACDAC supports three communication paradigms:
 
 1. __Virtual__ –– Many central, single peripheral.
 2. __Paired__ –– Single central, single peripheral.
@@ -148,9 +148,7 @@ An attentive reader may realise that one communication paradigm is missing: Sing
 
 ![image of drivers in a virtual mode](images/virtual.svg)
 
-The diagram shows three devices two in virtual mode, with one device acting as the "host" of the pin driver.
-
-**talk about PinDriver**
+The diagram shows three devices two in virtual mode, with one device acting as the "host" of the PinDriver. The PinDriver allows remote control over the state of a pin.
 
 Virtual drivers are stubs that perform operations on a remote host; they are uninitialised until a control packet matching the class is seen on the bus. They are then populated with the host drivers' information after receiving a matching control packet. Virtual drivers emit no control packets as they are not hosting a resource. If a host disappears, virtual drivers are set to their uninitialised state.
 
