@@ -164,8 +164,6 @@ When paired to another driver, JDDrivers create a Virtual stub of their partner 
 
 In the diagram, it should also be noted that the Paired driver is a Virtual stub with its own address. All API calls via the virtual stub are sent using the VirtualStubs _own address_; the PairedHost receives _packets from its partner_ and can act accordingly.
 
-__Need to solidify addressing, it's currently not clear how it all fits together... need to write about the fact that because packets are received by a host driver using its own address it can infer that the packet came externally, addressing diagrams might be useful__
-
 #### Broadcast Mode
 
 ![image of drivers in a broadcast mode](images/broadcast.svg)
@@ -173,3 +171,22 @@ __Need to solidify addressing, it's currently not clear how it all fits together
 This diagram shows three drivers running the MessageBus driver in Broadcast mode. A message bus shares primitive event information via a shared bus, in this case, JACDAC. Each driver is enumerated on the bus––this allows the source of an event to be determined by the MessageBus driver if required.
 
 The key difference in this mode is how packets are routed: _packets are matched on their class, rather than their address_. Broadcast mode can be combined with either of the previous modes already mentioned.
+
+## How does addressing actually work?
+
+After the description of driver modes it might not be clear how addresses are used in JACDAC, this section provides formalisation.
+
+### Virtual Mode
+
+![virtual mode addressing](images/addressing-virtual.svg)
+
+### Paired Mode
+
+![paired mode addressing](images/addressing-paired.svg)
+
+
+### Broadcast Mode
+
+![broadcast mode addressing](images/addressing-broadcast.svg)
+
+__Need to solidify addressing, it's currently not clear how it all fits together... need to write about the fact that because packets are received by a host driver using its own address it can infer that the packet came externally, addressing diagrams might be useful__
