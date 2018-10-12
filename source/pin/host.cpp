@@ -24,6 +24,7 @@ void on_unpaired(Event)
 int main()
 {
     nano.init();
+    protocol.add(pin);
     jacdac.start();
 
     nano.messageBus.listen(pin.id, JD_DRIVER_EVT_PAIRED, on_paired);

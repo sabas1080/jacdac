@@ -37,7 +37,7 @@ int main()
 
     int state = 1;
     protocol.add(r);
-    protocol.start();
+    jacdac.start();
 
     while(1)
     {

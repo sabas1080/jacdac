@@ -51,7 +51,7 @@ int main()
     bp.messageBus.listen(APP_ID, DEVICE_ID_ANY, message_bus_evt);
     serialBus.listen(APP_ID, DEVICE_ID_ANY);
     protocol.add(serialBus);
-    protocol.start();
+    jacdac.start();
 
     while(1)
     {
