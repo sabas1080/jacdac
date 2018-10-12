@@ -1,5 +1,14 @@
 # JACDAC: Joint Asynchronous Communications, Device Agnostic Control.
 
+## Introduction
+
+Microcontrollers (MCUs) are used to: monitor and actuate our environments, prototype new products for consumers, provide a creative outlet for hobbyists, and more recently, educate future generations on important computer science topics.
+Strikingly, MCU programming has transformed from a _highly specialised domain_ (requiring the knowledge of low-level programming languages and the installation of complex toolchains) to a _more approachable, accessible domain_––one can now write and compile complete programs directly in a web browser using simpler high-level programming languages. Even more striking is _the power_ of these higher level language: one can infact write complete I2C or SPI drivers without knowing C++.
+
+The fact that this is possible is important: it shows that people want to expand or enhance the capabilities of their current device, and they want to do it using wires...
+
+
+
 ## What is JACDAC?
 
 JACDAC is a single wire serial protocol for the plug and play of accessories for embedded computers.
@@ -119,7 +128,7 @@ class JDDriver : public CodalComponent
 };
 ```
 
-The device member variable is accessed by the logic driver to keep track of the state of an operating driver. The remaining member functions are invoked by the logic driver: `fillControlPacket`, invoked when the logic driver is queueing the drivers' control packet, allows driver specific information to be added; `handleControlPacket` is invoked when a matching control packet is received; `handlePairingPacket` is called when a pairing ControlPacket is received; and `handlePacket` is invoked whenever a packet is seen with the drivers address.
+The device member variable is accessed by the logic driver to maintain the state of an operating driver. The remaining member functions are invoked by the logic driver: `fillControlPacket`, invoked when the logic driver is queueing the drivers' control packet, allows driver specific information to be added; `handleControlPacket` is invoked when a matching control packet is received; `handlePairingPacket` is called when a pairing ControlPacket is received; and `handlePacket` is invoked whenever a packet is seen with the drivers address.
 
 ```cpp
 struct JDDevice
@@ -136,7 +145,7 @@ A JDDevice contains driver state used in `ControlPackets`. The _rolling_counter_
 
 ### Driver Paradigms
 
-While modelling every driver as a Central is one of the key design decisions of JACDAC, it would be naive to suggest that a broadcast communication paradigm is ideal in every scenario. However, basing JACDAC on a broadcast paradigm allows other communication paradigms to be layered on top. Therefore, JACDAC supports three communication paradigms:
+While modelling every driver as a Central is one of the key design decisions of JACDAC, it would be naive to suggest that a broadcast communication paradigm is ideal in every scenario. However, use of a broadcast paradigm enables three communication abstractions:
 
 1. __Virtual__ –– Many central, single peripheral.
 2. __Paired__ –– Single central, single peripheral.
@@ -152,13 +161,13 @@ The diagram shows three devices two in virtual mode, with one device acting as t
 
 Virtual drivers are stubs that perform operations on a remote host; they are uninitialised until a control packet matching the class is seen on the bus. They are then populated with the host drivers' information after receiving a matching control packet. Virtual drivers emit no control packets as they are not hosting a resource. If a host disappears, virtual drivers are set to their uninitialised state.
 
-If a virtual driver would like to use a certain driver, a serial number can optionally be specified––only the matched driver will be mounted. Alternate methods of mounting virtual drivers should be handled in software by placing additional information in driver control packets.
+If a virtual driver would like to use a specific driver, an optional serial number can be provided––only the matched driver will be mounted. Alternate methods of mounting virtual drivers should be handled in software by placing additional information in driver control packets.
 
 #### Paired Mode
 
 ![image of drivers in a paired mode](images/paired.svg)
 
-In Paired mode, two drivers are notionally bonded to each other at the software level. The image depicts three drivers, two are paired and the other is uninitialised. It is important to note that when two drivers are paired, the logic driver on other devices ignores packets until they are unpaired––hence why the virtual driver is not initialised.
+In Paired mode, two drivers are notionally bonded to each other at the software level. In this example there are three drivers: A paired host, a paired virtual, and an uninitialised virtual driver. It is important to highlight that although a host is present on the bus, only one virtual driver is initialised as logic drivers external to the pairing ignore packets emitted from these drivers until they are unpaired––hence the virtual driver is not initialised.
 
 When paired to another driver, JDDrivers create a Virtual stub of their partner and can observe standard packets emitted by them. Drivers should guarantee that when paired, only their partner can access and configure them. The Virtual stub allows connection events to be detected and handled.
 
@@ -168,9 +177,9 @@ In the diagram, it should also be noted that the Paired driver is a Virtual stub
 
 ![image of drivers in a broadcast mode](images/broadcast.svg)
 
-This diagram shows three drivers running the MessageBus driver in Broadcast mode. A message bus shares primitive event information via a shared bus, in this case, JACDAC. Each driver is enumerated on the bus––this allows the source of an event to be determined by the MessageBus driver if required.
+In this example, three drivers are running the MessageBus driver in Broadcast mode. A message bus shares primitive event information via a shared bus, in this case, JACDAC. Each driver is enumerated on the bus allowing the source of an event to be determined by the MessageBus driver if required.
 
-The key difference in this mode is how packets are routed: _packets are matched on their class, rather than their address_. Broadcast mode can be combined with either of the previous modes already mentioned.
+The key difference in this mode is how packets are routed: _packets are matched on their class, rather than their address_. Broadcast mode can be combined with paired or virtual modes previously mentioned.
 
 ## How does addressing actually work?
 
