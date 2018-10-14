@@ -2,10 +2,11 @@
 
 ## Introduction
 
-Microcontrollers (MCUs) are used to: monitor and actuate our environments, prototype new products for consumers, provide a creative outlet for hobbyists, and more recently, educate future generations on important computer science topics.
-Strikingly, MCU programming has transformed from a _highly specialised domain_ (requiring the knowledge of low-level programming languages and the installation of complex toolchains) to a _more approachable, accessible domain_––one can now write and compile complete programs directly in a web browser using simpler high-level programming languages. Even more striking is _the power_ of these higher level language: one can infact write complete I2C or SPI drivers without knowing C++.
+Microcontrollers (MCUs) are traditionally used: to monitor and actuate our environments (the Internet of Things), to prototype new products for consumers, and to enhance the creations of hobbyist-makers. However, more recently MCUs are being used to educate children on the fundamentals of computer science, helping to understand the increasingly technologically dense world around them.
 
-The fact that this is possible is important: it shows that people want to expand or enhance the capabilities of their current device, and they want to do it using wires...
+What is striking about the previous statement is the revelation that MCU programming has transformed from a _highly specialised domain_ (requiring the knowledge of low-level programming languages and the installation of complex toolchains) to a _more approachable, accessible domain_––children can now write and compile complete programs directly in a web browser using simpler high-level programming languages. Even more striking is _the power_ of these higher level languages: one can now write complete I2C or SPI drivers without learning any C++.
+
+Of course, children are not writing SPI or I2C drivers in these higher level language, but rather _businesses looking to create accessories_ that enhance the base offerings of the educationally focussed microcontroller-based devices. Any driver code written in a higher level language can be shared with any other microcontroller in the language ecosystem.
 
 
 
