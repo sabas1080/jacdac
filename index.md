@@ -18,7 +18,7 @@ However, the greatest problem with I2C or SPI is the _communication paradigm_: C
 
 To solve these problems, we introduce JACDAC (Joint Asynchronous Communications, Device Agnostic Control): a single wire broadcast protocol for the plug and play of accessories for microcontrollers. JACDAC requires _no additional hardware_ and abstracts accessories as a set of interfaces rather than hardware registers so that driver code can be shared across different implementations. It uses dynamic addressing so that multiple of the same accessory can be connected simultaneously and it offers three different communication abstractions to cater for an ever-diverse set of use scenarios for these accessories.
 
-## Why do we need _another_ protocol?
+<!-- ## Why do we need _another_ protocol?
 
 Conventionally SPI and I2C are used to communicate with other devices over a wire. I2C and SPI principally work in Central/Peripheral mode: One central directs the operation of all peripherals, configuring and interrogating them as desired.
 
@@ -28,7 +28,7 @@ Instead of static addressing, SPI uses the peripheral select wire to indicate th
 
 However, in the world of the Internet of Things (IoT), peer-to-peer scenarios are common place: programmers often want to share data with other devices in the vicinity. But what solution is available for sharing data locally through wired communications? I2C or SPI cannot be used because of their addressing approaches and communication topology (single Central only)––if two devices with the same components join buses, how are addresses resolved? One could develop a custom UART based protocol, or add ethernet capabilities to a device and run IPv4, but each of these approaches have obvious drawbacks.
 
-Built on UART, JACDAC requires _no additional hardware to operate_ as UART is supported in hardware by all modern processors. Peer to peer scenarios are enabled through a _broadcast topology_ where every device is a Central. Communications speeds are fixed to 1 mBaud, which means only _a single data wire_ is required.
+Built on UART, JACDAC requires _no additional hardware to operate_ as UART is supported in hardware by all modern processors. Peer to peer scenarios are enabled through a _broadcast topology_ where every device is a Central. Communications speeds are fixed to 1 mBaud, which means only _a single data wire_ is required. -->
 
 ## A UART based solution
 
