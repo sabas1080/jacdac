@@ -10,21 +10,17 @@ Of course, children are not writing SPI or I2C drivers in these higher level lan
 
 Historically, I2C and SPI have been used for communicating with peripherals and for good reason: these protocols are efficient, well-defined, and widely used. However, whilst these protocols are great for peripherals mounted on the _same_ circuit board, how do they fare when they are used to communicate with peripherals on a separate board? In the context of education, it turns out not so well: asking a classroom of 30 11–12 year old children to connect four wires correctly results in many failing peripherals.
 
-Various educational microcontrollers have devised solutions for this problem: the Arduino uses the "shield" system (stackable embedded boards that can only be plugged one-way to reach the main MCU); and the micro:bit has a custom edge connector for GPIO connections the allows easier integration with accessories. Each of these approaches has a drawback: Arduino shields cannot be mounted anywhere other than directly onto the main board, and the micro:bit only allows one accessory to be connected at a time through its edge connector; both approaches increase the overall cost of accessories.
+Various educational microcontrollers have devised solutions for this problem: the Arduino uses the "shield" system (stackable embedded boards that can only be plugged one-way to reach the main MCU); grove connectors (fill); and the micro:bit has a custom edge connector for GPIO connections the allows easier integration with accessories. Each of these approaches has a drawback: Arduino shields cannot be mounted anywhere other than directly onto the main board, and the micro:bit only allows one accessory to be connected at a time through its edge connector; both approaches increase the overall cost of accessories.
 
 Fundamentally, I2C and SPI rely on low-level addresses and registers to interface with external peripherals. Unfortunately, this means that whilst driver code can be ported to any microcontroller in the language ecosystem, the addresses and registers used by driver code are not shared between peripherals i.e. driver code for one accelerometer will not work with another brand of accelerometer.
 
-However, the greatest problem with I2C or SPI is the _communication paradigm_: Master / Slave (the I2C and SPI standards use the outdated terminology "Master / Slave", from here on we replace outdated terminology with "Central / Peripheral"). This paradigm dictates that a single device orchestrates the operation of all devices on the bus, manually configuring, writing, and reading their memory. This scenerio caters well for when there is only one central device on the bus, but what if you want two central devices to communicate with each other? The only remaining options are to add a network interface, or define a custom serial protocol.
+However, the greatest problem with I2C or SPI is the _communication paradigm_: Central / Peripheral (used in place of outdated Master/Slave terminology). This paradigm dictates that a single device orchestrates the operation of all devices on the bus, manually configuring, writing, and reading their memory. This scenario caters well for when there is only one central device on the bus, but what if you want two central devices to communicate with each other? The only remaining options are to add a network interface, or define a custom serial protocol.
 
-
-
-## What is JACDAC?
-
-JACDAC is a single wire serial protocol for the plug and play of accessories for embedded computers.
+We introduce JACDAC: a single wire broadcast protocol for the plug and play of accessories for microcontrollers. JACDAC abstracts accessories as a set of interfaces rather than hardware registers so that driver code can be shared across different implementations; it uses dynamic addressing so that multiple of the same accessory can be connected simultaneously; and finally, it offers three different communication abstraction to cater for an ever-diverse set of use scenarios for these accessories.
 
 ## Why do we need _another_ protocol?
 
-Conventionally SPI and I2C are used to communicate with other devices over a wire. I2C and SPI principally work in Central/Peripheral (used in place of outdated Master/Slave terminology) mode: One central directs the operation of all peripherals, configuring and interrogating them as desired.
+Conventionally SPI and I2C are used to communicate with other devices over a wire. I2C and SPI principally work in Central/Peripheral mode: One central directs the operation of all peripherals, configuring and interrogating them as desired.
 
 I2C uses static addresses for all components i.e. all MMA8653 accelerometers will have the same address. Each I2C component specifies its own register map and registers can be directly accessed by combining the component's address and register offset. I2C requires two wires to operate: _SCL_ to synchronise the communication speed, and _SDA_ for data payloads.
 
