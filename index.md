@@ -18,29 +18,31 @@ However, the greatest problem with I2C or SPI is the _communication paradigm_: C
 
 To solve these problems, we introduce JACDAC (Joint Asynchronous Communications, Device Agnostic Control): a single wire broadcast protocol for the plug and play of accessories for microcontrollers. JACDAC requires _no additional hardware_ to operate and abstracts accessories as a set of interfaces rather than hardware registers so that driver code can be shared across different implementations. It uses dynamic addressing so that multiple of the same accessory can be connected simultaneously and it offers three different communication abstractions to cater for an ever-diverse set of use scenarios for accessories.
 
-<!-- ## Why do we need _another_ protocol?
-
-Conventionally SPI and I2C are used to communicate with other devices over a wire. I2C and SPI principally work in Central/Peripheral mode: One central directs the operation of all peripherals, configuring and interrogating them as desired.
-
-I2C uses static addresses for all components i.e. all MMA8653 accelerometers will have the same address. Each I2C component specifies its own register map and registers can be directly accessed by combining the component's address and register offset. I2C requires two wires to operate: _SCL_ to synchronise the communication speed, and _SDA_ for data payloads.
-
-Instead of static addressing, SPI uses the peripheral select wire to indicate the peripheral to be accessed. SPI components require register offsets to be communicated over the MOSI (Central out peripheral in) line, and the selected peripheral responds using the MISO (Central in peripheral out) line. Multi-central modes for SPI and I2C are not well-supported.
-
-However, in the world of the Internet of Things (IoT), peer-to-peer scenarios are common place: programmers often want to share data with other devices in the vicinity. But what solution is available for sharing data locally through wired communications? I2C or SPI cannot be used because of their addressing approaches and communication topology (single Central only)––if two devices with the same components join buses, how are addresses resolved? One could develop a custom UART based protocol, or add ethernet capabilities to a device and run IPv4, but each of these approaches have obvious drawbacks.
-
-Built on UART, JACDAC requires _no additional hardware to operate_ as UART is supported in hardware by all modern processors. Peer to peer scenarios are enabled through a _broadcast topology_ where every device is a Central. Communications speeds are fixed to 1 mBaud, which means only _a single data wire_ is required. -->
-
 ## A UART based solution
 
-For reliable communications, embedded programmers tend to stay clear of UART: there is no common clock, the baud rate must be pre-determined, and there is no bus arbitration. Fortunately, hardware has improved over time adding DMA buffering and auto-baud detection thus improving reliability. To sidestep the issue of determining the baudrate, JACDAC is fixed to 1 mBaud; the problem of bus arbitration still remains.
+For reliable communications, embedded programmers tend to stay clear of UART: there is no common clock, the baud rate must be pre-determined, and there is no bus arbitration. Fortunately, hardware has improved over time adding DMA buffering and auto-baud detection thus improving reliability. In JACDAC, the baud rate is determined through measuring the low pulse at the beginning of a transmission.
 
-UART hardware modules traditionally occupy two IO lines, one for transmission the other for reception; when idle, IO lines float high such that they read a logical one. This behaviour remains the same in JACDAC, the bus floats high when no devices are transmitting. Bus arbitration is achieved through the transmitting device driving the line low for 10 microseconds, beginning transmission 150 microseconds later. This approach allows devices to listen to the bus in a low power mode using a GPIO interrupt, and power up and configure the UART hardware only when required.
+Ideally all JACDAC peripherals should run at 1Mbaud, but this baud rate is only supported on expensive MCUs which are overkill in some scenarios. Take for example a JACDAC button peripheral, all that needs to be communicated is the state of the button (1 byte) and a control packet (8 bytes); using a $1.50 MCU to do this is extreme. Therefore, JACDAC supports four baud rates: 1Mbaud, 500Kbaud, 250Kbaud, 125Kbaud. This enables low cost MCUs to be used in JACDAC peripherals with small payloads, where the use of lower baud rates has minimal impact on the throughput of the bus.
 
-A 10 microsecond window is used for two reasons: (1) the probability of a transmission collision is reduced; and (2) to simplify error logic---a low period of 30 microseconds or more is enough time for  UART hardware to be operable and a break condition to be generated. It is then challenging to differentiate between a true UART error, and an error generated by the low period.
+UART hardware modules traditionally occupy two IO lines, one for transmission the other for reception; when idle, IO lines float high such that they read a logical one. This behaviour remains the same in JACDAC, the bus floats high when no devices are transmitting. Bus arbitration is achieved through the transmitting device driving the line low for 10 bits at the desired baud rate, beginning transmission 150 microseconds later. This approach allows devices to listen to the bus in a low power mode using a GPIO interrupt, and power up and configure the UART hardware only when required.
 
 ![picture of a low period followed by data](images/physical.svg)
 
-The process described is visualised in the image above. The bus is high for a period of time, driven low for 10 microseconds, data following 150 microseconds later.
+The process described is visualised in the image above. The bus is high for a period of time, driven low for 10 microseconds (10 bits at 1Mbaud), data following 150 microseconds later.
+
+### Physical Layer Specifications
+
+To operate on the JACDAC bus, an MCU must be capable of:
+
+* Communicating / receiving UART-style bytes using a single wire.
+* Reaching one of four baud rates: 1Mbaud, 500Kbaud, 250Kbaud, 125Kbaud.
+* Digital IO with PullUp capabilities.
+
+When the JACDAC bus is in idle state, all MCUs on the bus should configure their TX/RX pin to be an input with a PullUp. In this state, the bus will be floating high.
+
+When an MCU wants to transmit, it should drive the bus Lo for 10 bits at the desired baud rate (1M == 10 us; 500Kb == 20 us etc.), and wait 150 us before transmitting data.
+
+When an MCU spots a transmission (a period of Lo), it has 150 microseconds to configure any hardware registers (if running a UART module) and software buffers to receive 4 bytes (a JDPkt header). After receiving the four bytes, an MCU can choose to either receive or ignore a packet, and can calculate when the bus will resume the idle state based upon the size specified in the JDPkt header.
 
 ## A broadcast paradigm
 
