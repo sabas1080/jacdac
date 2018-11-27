@@ -1,6 +1,4 @@
-# Joint Asynchronous Communications, Device Agnostic Control.
-
-## Introduction
+# Introduction
 
 Microcontrollers (MCUs) are traditionally used to monitor and actuate our environments (the Internet of Things), to prototype new products for consumers, and to enhance the creations of hobbyist-makers. However, more recently MCUs are being used to educate children on the fundamentals of computer science, helping them to understand the increasingly technologically dense world around them.
 
@@ -18,7 +16,7 @@ However, the greatest problem with I2C or SPI is the _communication paradigm_: C
 
 To solve these problems, we introduce JACDAC (Joint Asynchronous Communications, Device Agnostic Control): a single wire broadcast protocol for the plug and play of accessories for microcontrollers. JACDAC requires _no additional hardware_ to operate and abstracts accessories as a set of interfaces rather than hardware registers so that driver code can be shared across different implementations. It uses dynamic addressing so that multiple of the same accessory can be connected simultaneously and it offers three different communication abstractions to cater for an ever-diverse set of use scenarios for accessories.
 
-## A UART based solution
+# A UART based solution
 
 For reliable communications, embedded programmers tend to stay clear of UART: there is no common clock, the baud rate must be pre-determined, and there is no bus arbitration. Fortunately, hardware has improved over time adding DMA buffering and auto-baud detection thus improving reliability. In JACDAC, the baud rate is determined through measuring the low pulse at the beginning of a transmission.
 
@@ -30,7 +28,7 @@ UART hardware modules traditionally occupy two IO lines, one for transmission th
 
 The process described is visualised in the image above. The bus is high for a period of time, driven low for 10 microseconds (10 bits at 1Mbaud), data following 150 microseconds later.
 
-### Physical Layer Specifications
+## Physical Layer Specifications
 
 To operate on the JACDAC bus, an MCU must be capable of:
 
@@ -44,7 +42,7 @@ When an MCU wants to transmit, it should drive the bus Lo for 10 bits at the des
 
 When an MCU spots a transmission (a period of Lo), it has 150 microseconds to configure any hardware registers (if running a UART module) and software buffers to receive 4 bytes (a JDPkt header). After receiving the four bytes, an MCU can choose to either receive or ignore a packet, and can calculate when the bus will resume the idle state based upon the size specified in the JDPkt header.
 
-## A broadcast paradigm
+# A broadcast paradigm
 
 ![image of devices in a broadcast topology](images/bus.svg)
 
@@ -52,7 +50,7 @@ The image above shows JACDAC devices in the only supported topology: broadcast. 
 
 Since the physical layer has been discussed previously, we move onto the logic layer
 
-### The Logic Layer
+## The Logic Layer
 
 The logic layer is formed of three elements:
 
@@ -60,7 +58,7 @@ The logic layer is formed of three elements:
 2. On device routing to a destination driver.
 3. A logic driver to handle device enumeration.
 
-#### Packet Structure
+### Packet Structure
 
 A JACDAC packet is simple, consisting of: a _crc_ (cyclic redundancy check) to provide guarantees of packet consistency; an _address_ indicating the source _or_ destination address of a driver; the _size_ of the data field; and finally the _data_ payload specified by a driver. When a packet is received, the protocol will route packets to the driver with the given address.
 
@@ -74,7 +72,7 @@ struct JDPkt
 }
 ```
 
-#### Routing a packet
+### Routing a packet
 
 With the limited information in the packet above, how do packets reach their destination?
 
@@ -96,7 +94,7 @@ struct ControlPacket
 
 Standard and `ControlPackets` form the basis of the JACDAC protocol.
 
-#### The Logic Driver
+### The Logic Driver
 
 The logic driver is responsible for managing address allocation and conflicts, and for signalling that devices have been connected or removed from the bus. On *all* JACDAC devices, the logic driver resides on address zero.
 
@@ -108,7 +106,7 @@ It is likely that two separate buses may be joined by a user. When this happens,
 
 Connecting a new driver is handled simply: the first control packet after the address allocation period is deemed "connected". A disconnected driver is determined by the absence of two consecutive control packets (a period of 1 second).
 
-## Drivers
+# Drivers
 
 Drivers build on the logic layer and expose usable APIs to the application programmer. Every driver has a class identifying the type of driver and a unique serial number to identify the driver––this is automatically performed by combining the device serial number and driver class.
 
@@ -150,7 +148,7 @@ struct JDDevice
 
 A JDDevice contains driver state used in `ControlPackets`. The _rolling_counter_ field is used by the logic driver to trigger various control packet events. The address of a driver is set by the logic driver and stored in the _address_ field. Various constructors are available for this struct, please visit the API documentation.
 
-### Driver Paradigms
+## Driver Paradigms
 
 While modelling every driver as a Central is one of the key design decisions of JACDAC, it would be naive to suggest that a broadcast communication paradigm is ideal in every scenario. However, use of a broadcast paradigm enables three communication abstractions:
 
@@ -160,7 +158,7 @@ While modelling every driver as a Central is one of the key design decisions of 
 
 An attentive reader may realise that one communication paradigm is missing: Single central, many peripheral; in JACDAC this is realised through many Paired connections.
 
-#### Virtual Mode
+### Virtual Mode
 
 ![image of drivers in a virtual mode](images/virtual.svg)
 
@@ -170,7 +168,7 @@ Virtual drivers are stubs that perform operations on a remote host; they are uni
 
 If a virtual driver would like to use a specific driver, an optional serial number can be provided––only the matched driver will be mounted. Alternate methods of mounting virtual drivers should be handled in software by placing additional information in driver control packets.
 
-#### Paired Mode
+### Paired Mode
 
 ![image of drivers in a paired mode](images/paired.svg)
 
@@ -180,7 +178,7 @@ When paired to another driver, JDDrivers create a Virtual stub of their partner 
 
 In the diagram, it should also be noted that the Paired driver is a Virtual stub with its own address. All API calls via the virtual stub are sent using the VirtualStubs _own address_; the PairedHost receives _packets from its partner_ and can act accordingly.
 
-#### Broadcast Mode
+### Broadcast Mode
 
 ![image of drivers in a broadcast mode](images/broadcast.svg)
 
@@ -188,20 +186,20 @@ In this example, three drivers are running the MessageBus driver in Broadcast mo
 
 The key difference in this mode is how packets are routed: _packets are matched on their class, rather than their address_. Broadcast mode can be combined with paired or virtual modes previously mentioned.
 
-## How does addressing actually work?
+# How does addressing actually work?
 
 After the description of driver modes it might not be clear how addresses are used in JACDAC, this section provides formalisation.
 
-### Virtual Mode
+## Virtual Mode
 
 ![virtual mode addressing](images/addressing-virtual.svg)
 
-### Paired Mode
+## Paired Mode
 
 ![paired mode addressing](images/addressing-paired.svg)
 
 
-### Broadcast Mode
+## Broadcast Mode
 
 ![broadcast mode addressing](images/addressing-broadcast.svg)
 

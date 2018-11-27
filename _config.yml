@@ -1,3 +1,4 @@
 theme: jekyll-theme-cayman
-title: [<img href="./images/logo.png"></img>]
+title: [<img src="./images/logo.png" width="50%" alt="jacdac logo, created by Joey Wunderlich"/>]
+description: [Joint Asynchronous Communications, Device Agnostic Control.]
 logo: /images/logo.png
