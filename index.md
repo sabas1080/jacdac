@@ -1,4 +1,8 @@
-# JACDAC: Joint Asynchronous Communications, Device Agnostic Control.
+
+
+![jacdac logo](images/logo.png)
+
+# Joint Asynchronous Communications, Device Agnostic Control.
 
 ## Introduction
 
