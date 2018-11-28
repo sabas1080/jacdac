@@ -1,11 +1,8 @@
 ---
 ---
 
-@import "{{ site.theme }}";
+$header-bg-color: white;
+$header-bg-color-secondary: white;
+$section-headings-color:black;
 
-page-header {
-    color:#fff;
-    text-align: center;
-    background-color: #fdfdfd;
-    // background-image: linear-gradient(120deg, #155799, #159957);
-}
+@import "{{ site.theme }}";
