@@ -1,4 +1,4 @@
 theme: jekyll-theme-cayman
 title: JACDAC
-description: "Joint Asynchronous Communications; Device Agnostic Control. <br/><br/><u>Authors:</u> <b>J. Devine</b>, <b>M. Moskal</b>, <b>P. Halleux</b>, <b>T. Ball</b>, <b>S. Hodges</b>, <b>J. Finney.</b>"
+description: "Joint Asynchronous Communications; Device Agnostic Control.<br/><br/>a single wire broadcast protocol for the plug and play of accessories for microcontrollers. <br/><br/><u>Authors:</u> <b>J. Devine</b>, <b>M. Moskal</b>, <b>P. Halleux</b>, <b>T. Ball</b>, <b>S. Hodges</b>, <b>J. Finney.</b>"
 logo: /images/logo.png
