@@ -18,7 +18,7 @@ For businesses, the choice of communication protocol for external peripherals se
 
 We present JACDAC (Joint Asynchronous Communications, Device Agnostic Control): a single wire broadcast protocol for the plug and play of accessories for microcontrollers. JACDAC requires no additional hardware to operate and abstracts accessories as a set of interfaces rather than hardware registers so that driver code can be shared across different implementations. It uses dynamic addressing so that multiple of the same accessory can be connected simultaneously and it offers three different communication abstractions to cater for an ever-diverse set of use scenarios for accessories.
 
-# A UART based solution
+# The Physical Layer
 
 For reliable communications, embedded programmers tend to stay clear of UART: there is no common clock, the baud rate must be pre-determined, and there is no bus arbitration. Fortunately, hardware has improved over time adding DMA buffering and auto-baud detection thus improving reliability. In JACDAC, the baud rate is determined through measuring the low pulse at the beginning of a transmission.
 
@@ -36,15 +36,20 @@ To operate on the JACDAC bus, an MCU must be capable of:
 
 * Communicating / receiving UART-style bytes using a single wire.
 * Reaching one of four baud rates: 1Mbaud, 500Kbaud, 250Kbaud, 125Kbaud.
-* Digital IO with PullUp capabilities.
+* GPIO with PullUp capabilities and interrupts. In CODAL, the pin used for UART tx/rx must also be able to   must be enabled on the same pin as the pin UART fo.
 
 When the JACDAC bus is in idle state, all MCUs on the bus should configure their TX/RX pin to be an input with a PullUp. In this state, the bus will be floating high.
 
-When an MCU wants to transmit, it should drive the bus Lo for 10 bits at the desired baud rate (1M == 10 us; 500Kb == 20 us etc.), and wait 150 us before transmitting data.
+When an MCU wants to transmit, it should drive the bus low for 10 bits at the desired baud rate and wait 150 us before transmitting data:
 
-When an MCU spots a transmission (a period of Lo), it has 150 microseconds to configure any hardware registers (if running a UART module) and software buffers to receive 4 bytes (a JDPkt header). After receiving the four bytes, an MCU can choose to either receive or ignore a packet, and can calculate when the bus will resume the idle state based upon the size specified in the JDPkt header.
+* 10 us at 1 MBaud:
+* 20 us at 500 KBaud
+* 40 us at 250 KBaud
+* 80 us at 125 KBaud
 
-# A broadcast paradigm
+When an MCU spots a transmission (a period of low), it has 150 microseconds to configure any hardware registers (if running a UART module) and software buffers to receive 4 bytes (a JDPkt header). After receiving the four bytes, an MCU can choose to either receive or ignore a packet, and can calculate when the bus will resume the idle state based upon the size specified in the JDPkt header.
+
+# Software Layer
 
 ![image of devices in a broadcast topology](images/bus.svg)
 
