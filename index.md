@@ -42,7 +42,7 @@ When the JACDAC bus is in idle state, all MCUs on the bus should configure their
 
 When an MCU wants to transmit, it should drive the bus low for 10 bits at the desired baud rate and wait 150 us before transmitting data:
 
-* 10 us at 1 MBaud:
+* 10 us at 1 MBaud
 * 20 us at 500 KBaud
 * 40 us at 250 KBaud
 * 80 us at 125 KBaud
