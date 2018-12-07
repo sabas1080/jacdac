@@ -26,7 +26,7 @@ JACDAC uses the built-in UART module common to most MCUs as its communication me
 
 JACDAC supports four baud rates: 1Mbaud, 500Kbaud, 250Kbaud, 125Kbaud, allowing cheaper MCUs to be used. Ideally all JACDAC peripherals should run at 1Mbaud, but this baud rate is only supported on expensive MCUs which are overkill in some scenarios. Take for example a JACDAC button peripheral, all that needs to be communicated is the state of the button (1 byte) and a control packet (12 bytes); using a $1.50 MCU to do this is extreme. By supporting multiple baud rates, JACDAC enables low cost MCUs to be used in JACDAC peripherals with small payloads, where the use of lower baud rates has minimal impact on the throughput of the bus.
 
-UART hardware modules traditionally occupy two IO lines, one for transmission the other for reception; when idle, IO lines float high such that they read a logical one. This behaviour remains the same in JACDAC, the bus floats high when no devices are transmitting. Bus arbitration is achieved through the transmitting device driving the line low for 10 bits at the desired baud rate, beginning transmission 150 microseconds later. This approach allows devices to listen to the bus in a low power mode using a GPIO interrupt, and power up and configure the UART hardware only when required.
+UART hardware modules traditionally occupy two IO lines, one for transmission the other for reception; when idle, IO lines float high such that they read a logical one. This behaviour remains the same in JACDAC, the bus floats high when no devices are transmitting. Bus arbitration is achieved through the transmitting device driving the line low for 10 bits at the desired baud rate, beginning transmission 150 microseconds later. This approach allows devices to listen to the bus in a low power mode using a GPIO interrupt, power up, and configure the UART hardware only when required.
 
 ![picture of a low period followed by data](images/physical.svg)
 
@@ -36,9 +36,9 @@ The process described is visualised in the image above. The bus is high for a pe
 
 To operate on the JACDAC bus, an MCU must be capable of:
 
-* Communicating / receiving UART-style bytes using a single wire.
+* Communicating / receiving UART-style bytes using a single wire. (10 bits: 1 byte, 1 stop bit, 1 start bit).
 * Reaching one of four baud rates: 1Mbaud, 500Kbaud, 250Kbaud, 125Kbaud.
-* GPIO with PullUp capabilities and interrupts. In CODAL, the pin used for UART tx/rx must also be able to   must be enabled on the same pin as the pin UART fo.
+* A GPIO with PullUp capabilities and interrupts. It's far easier if the pin used for UART tx/rx can also generate GPIO interrupts.
 
 When the JACDAC bus is in idle state, all MCUs on the bus should configure their TX/RX pin to be an input with a PullUp. In this state, the bus will be floating high.
 
