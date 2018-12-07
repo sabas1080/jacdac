@@ -38,7 +38,7 @@ To operate on the JACDAC bus, an MCU must be capable of:
 
 * Communicating / receiving UART-style bytes using a single wire. (10 bits: 1 byte, 1 stop bit, 1 start bit).
 * Reaching one of four baud rates: 1Mbaud, 500Kbaud, 250Kbaud, 125Kbaud.
-* A GPIO with PullUp capabilities and interrupts. It's far easier if the pin used for UART tx/rx can also generate GPIO interrupts.
+* A GPIO with PullUp capabilities and interrupts. It's far easier if the pin used for UART tx/rx can also generate GPIO interrupts (especially in CODAL).
 
 When the JACDAC bus is in idle state, all MCUs on the bus should configure their TX/RX pin to be an input with a PullUp. In this state, the bus will be floating high.
 
@@ -69,9 +69,9 @@ Above we showed that bus arbitration is performed through pulsing the bus low fo
 
 ![diagram of potential bus collision](images/bus-collision.svg)
 
-The diagram above shows two devices overlapping their bus pulses. In this scenario, other devices would see their pulses coincide and try to match the respective baud rate. When data is transmitted there are two possible error sources: 1) the baud rate of the transmission differs from the detected baud rate from the low pulse; and 2) UART framing errors would be generated on receiving devices.
+The diagram above shows two devices overlapping their bus pulses. When data is transmitted on a perfect line, there is one possible error sources: UART framing errors. These framing errors could be caused by: 1) a mismatch between the baud rate derived from the low pulse, and the actual transmission baud rate; and/or (2) overlapping transmissions.
 
-However, we can easily reduce the probability one of these error sources:
+We can easily reduce the probability of the first error source:
 
 ![diagram of ideal bus collision](images/bus-collision-good.svg)
 
