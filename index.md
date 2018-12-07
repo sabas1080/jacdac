@@ -49,6 +49,36 @@ When an MCU wants to transmit, it should drive the bus low for 10 bits at the de
 
 When an MCU spots a transmission (a period of low), it has 150 microseconds to configure any hardware registers (if running a UART module) and software buffers to receive 4 bytes (a JDPkt header). After receiving the four bytes, an MCU can choose to either receive or ignore a packet, and can calculate when the bus will resume the idle state based upon the size specified in the JDPkt header.
 
+## Interbyte Spacing
+
+![diagram of the maximum spacing between bytes](images/interbyte-spacing.svg)
+
+The diagram above shows the maximum permitted time between bytes. One 0xFF byte at the minimum baud rate (125k), plus one stop bit (0b0111111111).
+
+## Interframe Spacing
+
+![diagram of the maximum spacing between frames](images/interframe-spacing.svg)
+
+The minimum space between frames is also locked to one 0xff byte at the minimum baud rate (125k); this is shown above.
+
+## Bus Collisions
+
+Above we showed that bus arbitration is performed through pulsing the bus low for 10 bits at the desired baud rate. However, a device could disable GPIO interrupts and initiate the process of transmission by driving the bus low whilst another device is doing the same. So what happens when the low pulses of two (or more) devices coincide?
+
+![diagram of potential bus collision](images/bus-collision.svg)
+
+The diagram above shows two devices overlapping their bus pulses. In this scenario, other devices would see their pulses coincide and try to match the respective baud rate. When data is transmitted there are two possible error sources: 1) the baud rate of the transmission differs from the detected baud rate from the low pulse; and 2) UART framing errors would be generated on receiving devices.
+
+However, we can easily reduce the probability one of these error sources:
+
+![diagram of ideal bus collision](images/bus-collision-good.svg)
+
+In the diagram above, device two pulses low first. Before device one initiates a pulse it detects that the bus is already low and instead swaps to reception mode. _Therefore every device must check the bus state before initiating a transmission_.
+
+Although we reduced the probability of two device pulses overlapping by checking the bus state first, there still remains some probability that two (or more) devices could pulse at the same time:
+
+![diagram of bad bus collision](images/bus-collision-bad.svg)
+
 # Software Layer
 
 ![image of devices in a broadcast topology](images/bus.svg)
