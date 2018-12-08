@@ -2,6 +2,3 @@ theme: jekyll-theme-cayman
 title: JACDAC
 description: "<b>J</b>oint <b>A</b>synchronous <b>C</b>ommunications; <b>D</b>evice <b>A</b>gnostic <b>C</b>ontrol.<br/><br/><i>A single wire broadcast protocol for the plug and play of accessories for microcontrollers.</i> <br/><br/><u>Authors:</u> <b>J. Devine</b>, <b>M. Moskal</b>, <b>P. Halleux</b>, <b>T. Ball</b>, <b>S. Hodges</b>, <b>J. Finney.</b>"
 logo: /images/logo.png
-toc: true
-plugins:
-  - jekyll-toc
