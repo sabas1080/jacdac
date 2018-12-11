@@ -81,6 +81,8 @@ Although we reduced the probability of two device pulses overlapping by checking
 
 ![diagram of bad bus collision](images/bus-collision-bad.svg)
 
+In this case, we expect the UART module on the MCU to detect an error (most likely a framing error), or the received crc to be incorrect.
+
 # Software Layer
 
 ![image of devices in a broadcast topology](images/bus.svg)
