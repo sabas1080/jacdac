@@ -26,11 +26,11 @@ JACDAC uses the built-in UART module common to most MCUs as its communication me
 
 JACDAC supports four baud rates: 1Mbaud, 500Kbaud, 250Kbaud, 125Kbaud, allowing cheaper MCUs to be used. Ideally all JACDAC peripherals should run at 1Mbaud, but this baud rate is only supported on expensive MCUs which are not necessary in all scenarios. Take for example a JACDAC button peripheral, all that needs to be communicated is the state of the button (1 byte) and a control packet (12 bytes); using a $1.50 MCU to do this is extreme. By supporting multiple baud rates, JACDAC enables low cost MCUs to be used in JACDAC peripherals with small payloads, where the use of lower baud rates has minimal impact on the throughput of the bus.
 
-UART hardware modules traditionally occupy two IO lines, one for transmission the other for reception; when idle, IO lines float high such that they read a logical one. This behaviour remains the same in JACDAC, the bus floats high when no devices are transmitting. Bus arbitration is achieved through the transmitting device driving the line low for 10 bits at the desired baud rate, beginning transmission 150 microseconds later. This approach allows devices to listen to the bus in a low power mode using a GPIO interrupt, power up, and configure the UART hardware only when required.
+UART hardware modules traditionally occupy two IO lines, one for transmission the other for reception; when idle, IO lines float high such that they read a logical one. This behaviour remains the same in JACDAC, the bus floats high when no devices are transmitting. Bus arbitration is achieved through the transmitting device driving the line low for 10 bits at the desired baud rate, beginning transmission minimally 40 microseconds later. This approach allows devices to listen to the bus in a low power mode using a GPIO interrupt, power up, and configure the UART hardware only when required.
 
 ![picture of a low period followed by data](images/physical.svg)
 
-The process described is visualised in the image above. The bus is high for a period of time, driven low for 10 microseconds (10 bits at 1Mbaud), data following 150 microseconds later.
+The process described is visualised in the image above. The bus is high for a period of time, driven low for 10 microseconds (10 bits at 1Mbaud), data following 40 microseconds later.
 
 ## Physical Layer Specifications
 
@@ -45,16 +45,20 @@ When the JACDAC bus is in idle state, all MCUs on the bus should configure their
 
 __NOTE: All timings from this point on are described in terms of bytes (including 1 start bit and one stop bit).__
 
-When an MCU wants to transmit, it should drive the bus low for 10 bits at the desired baud rate and wait for a minimum of 2 bytes at the current baud before transmitting data.
+When an MCU wants to transmit, it should drive the bus low for 10 bits at the desired baud rate and wait for a minimum of 40 microseconds before transmitting data.
 
 * 10 us at 1 MBaud
 * 20 us at 500 KBaud
 * 40 us at 250 KBaud
 * 80 us at 125 KBaud
 
-When an MCU spots the beginning of a transmission (a low pulse), it has a minimum of 4 bytes at the maximum baud rate (40 microseconds) and a maximum of 3 bytes at the slowest baud (240 microseconds) to configure any hardware registers (if running a UART module) and software buffers to receive 4 bytes (a JDPkt header). After receiving the four bytes, an MCU can choose to either receive the remainder or ignore a packet.
+When an MCU spots the beginning of a transmission (a low pulse), it has a minimum of 40 microseconds and a maximum 160 microseconds (two bytes at the slowest baud) to configure any hardware registers (if running a UART module) and software buffers to receive the header of JDPkt. After receiving the header, an MCU can choose to either receive the remainder or ignore a packet.
 
 ## InterLoData Spacing
+
+The minimum time before data can be sent after a lo pulse is 40 microseconds, and the maximum gap before data begins is 160 microseconds (two bytes at the lowest baud); times are relative from the end of the lo pulse:
+
+![diagram of the maximum spacing between bytes](images/interlodata-spacing.svg)
 
 ## Interbyte Spacing
 
