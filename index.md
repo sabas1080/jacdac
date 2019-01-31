@@ -24,7 +24,7 @@ For reliable communications, embedded programmers tend to stay clear of UART: th
 
 JACDAC uses the built-in UART module common to most MCUs as its communication mechanism, and instead of running two separate wires for transmission and reception, JACDAC uses just one wire for both in a bus topology. JACDAC performs bus arbitration using a GPIO interrupt attached to the bus allowing the MCU to enter a low power state between communications.
 
-JACDAC supports four baud rates: 1Mbaud, 500Kbaud, 250Kbaud, 125Kbaud, allowing cheaper MCUs to be used. Ideally all JACDAC peripherals should run at 1Mbaud, but this baud rate is only supported on expensive MCUs which are overkill in some scenarios. Take for example a JACDAC button peripheral, all that needs to be communicated is the state of the button (1 byte) and a control packet (12 bytes); using a $1.50 MCU to do this is extreme. By supporting multiple baud rates, JACDAC enables low cost MCUs to be used in JACDAC peripherals with small payloads, where the use of lower baud rates has minimal impact on the throughput of the bus.
+JACDAC supports four baud rates: 1Mbaud, 500Kbaud, 250Kbaud, 125Kbaud, allowing cheaper MCUs to be used. Ideally all JACDAC peripherals should run at 1Mbaud, but this baud rate is only supported on expensive MCUs which are not necessary in all scenarios. Take for example a JACDAC button peripheral, all that needs to be communicated is the state of the button (1 byte) and a control packet (12 bytes); using a $1.50 MCU to do this is extreme. By supporting multiple baud rates, JACDAC enables low cost MCUs to be used in JACDAC peripherals with small payloads, where the use of lower baud rates has minimal impact on the throughput of the bus.
 
 UART hardware modules traditionally occupy two IO lines, one for transmission the other for reception; when idle, IO lines float high such that they read a logical one. This behaviour remains the same in JACDAC, the bus floats high when no devices are transmitting. Bus arbitration is achieved through the transmitting device driving the line low for 10 bits at the desired baud rate, beginning transmission 150 microseconds later. This approach allows devices to listen to the bus in a low power mode using a GPIO interrupt, power up, and configure the UART hardware only when required.
 
@@ -39,33 +39,46 @@ To operate on the JACDAC bus, an MCU must be capable of:
 * Communicating / receiving UART-style bytes using a single wire. (10 bits: 1 byte, 1 stop bit, 1 start bit).
 * Reaching one of four baud rates: 1Mbaud, 500Kbaud, 250Kbaud, 125Kbaud.
 * A GPIO with PullUp capabilities and interrupts. It's far easier if the pin used for UART tx/rx can also generate GPIO interrupts (especially in CODAL).
+* The ability to keep time (whether through instruction counting or a hardware timer).
 
-When the JACDAC bus is in idle state, all MCUs on the bus should configure their TX/RX pin to be an input with a PullUp. In this state, the bus will be floating high.
+When the JACDAC bus is in idle state, all MCUs on the bus should configure their TX/RX pin to be an input with a PullUp. In this state, the bus will read high.
 
-When an MCU wants to transmit, it should drive the bus low for 10 bits at the desired baud rate and wait 150 us before transmitting data:
+__NOTE: All timings from this point on are described in terms of bytes (including 1 start bit and one stop bit).__
+
+When an MCU wants to transmit, it should drive the bus low for 10 bits at the desired baud rate and wait for a minimum of 2 bytes at the current baud before transmitting data.
 
 * 10 us at 1 MBaud
 * 20 us at 500 KBaud
 * 40 us at 250 KBaud
 * 80 us at 125 KBaud
 
-When an MCU spots a transmission (a period of low), it has 150 microseconds to configure any hardware registers (if running a UART module) and software buffers to receive 4 bytes (a JDPkt header). After receiving the four bytes, an MCU can choose to either receive or ignore a packet, and can calculate when the bus will resume the idle state based upon the size specified in the JDPkt header.
+When an MCU spots the beginning of a transmission (a low pulse), it has a minimum of 4 bytes at the maximum baud rate (40 microseconds) and a maximum of 3 bytes at the slowest baud (240 microseconds) to configure any hardware registers (if running a UART module) and software buffers to receive 4 bytes (a JDPkt header). After receiving the four bytes, an MCU can choose to either receive the remainder or ignore a packet.
+
+## InterLoData Spacing
 
 ## Interbyte Spacing
 
-![diagram of the maximum spacing between bytes](images/interbyte-spacing.svg)
+The maximum permitted time between bytes is two bytes at the minimum baud rate (125KBaud):
 
-The diagram above shows the maximum permitted time between bytes. One 0xFF byte at the minimum baud rate (125k), plus one stop bit (0b0111111111).
+![diagram of the maximum spacing between bytes](images/interbyte-spacing.svg)
 
 ## Interframe Spacing
 
+The minimum space between frames is also locked to two bytes at the minimum baud rate (125KBaud):
+
 ![diagram of the maximum spacing between frames](images/interframe-spacing.svg)
 
-The minimum space between frames is also locked to one 0xff byte at the minimum baud rate (125k); this is shown above.
+## Error Recovery & Bus Idle Detection
+
+If a device chooses to ignore a packet or an error condition is detected when receiving a packet, a device needs to determine when the bus has entered an idle state.
+
+An idle bus is defined as no activity for 2 bytes at 125kbaud (160 microseconds).
+
+To detect this time period, a device should capture the time from when the bus last transitioned from lo to hi, resetting this time if the bus transitions.
 
 ## Bus Collisions
 
-Above we showed that bus arbitration is performed through pulsing the bus low for 10 bits at the desired baud rate. However, a device could disable GPIO interrupts and initiate the process of transmission by driving the bus low whilst another device is doing the same. So what happens when the low pulses of two (or more) devices coincide?
+Above we described that bus arbitration is performed through pulsing the bus low for 10 bits at the desired baud rate. However, a device could disable GPIO interrupts and initiate the process of transmission by driving the bus low whilst another device is doing the same. So what happens when the low pulses of two (or more) devices coincide?
 
 ![diagram of potential bus collision](images/bus-collision.svg)
 
