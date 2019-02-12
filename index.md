@@ -66,11 +66,15 @@ The maximum permitted time between bytes is two bytes at the minimum baud rate (
 
 ![diagram of the maximum spacing between bytes](images/interbyte-spacing.svg)
 
+To be JACDAC compatible, devices should never near the maximum interbyte spacing.
+
 ## Interframe Spacing
 
 The minimum space between frames is also locked to two bytes at the minimum baud rate (125KBaud):
 
 ![diagram of the maximum spacing between frames](images/interframe-spacing.svg)
+
+JACDAC devices must observe the minimum interframe spacing. The diagram above depicts an unrealistic scenario where another packet begins immediately after the interframe spacing. Devices should incorporate a random backoff so not to communicate at precisely the same times as another device.
 
 ## Error Recovery & Bus Idle Detection
 
