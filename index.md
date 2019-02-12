@@ -1,7 +1,7 @@
 # Introduction
 
-<div style="background-color:red;">
-    TEST!
+<div style="background-color:#f77e7e;">
+    <b>JACDAC is very much still under development and subject to change. If you would like to contribute ideas and suggestions, please go to the github repository link people and file an issue.</b>
 </div>
 
 Microcontrollers (MCUs) are traditionally used to monitor and actuate our environments (the Internet of Things), to prototype new products for consumers, and to enhance the creations of hobbyist-makers. However, more recently MCUs are being used to educate children on the fundamentals of computer science, helping them to understand the increasingly technologically dense world around them.
