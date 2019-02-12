@@ -1,6 +1,8 @@
 # Introduction
 
-!!! Test message
+<div style="background-color:red;">
+    TEST!
+</div>
 
 Microcontrollers (MCUs) are traditionally used to monitor and actuate our environments (the Internet of Things), to prototype new products for consumers, and to enhance the creations of hobbyist-makers. However, more recently MCUs are being used to educate children on the fundamentals of computer science, helping them to understand the increasingly technologically dense world around them.
 
