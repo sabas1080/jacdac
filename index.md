@@ -1,22 +1,8 @@
-# Introduction
+# What is JACDAC?
 
-Microcontrollers (MCUs) are traditionally used to monitor and actuate our environments (the Internet of Things), to prototype new products for consumers, and to enhance the creations of hobbyist-makers. However, more recently MCUs are being used to educate children on the fundamentals of computer science, helping them to understand the increasingly technologically dense world around them.
+JACDAC (Joint Asynchronous Communications; Device Agnostic Control) is a single wire protocol for the plug and play of sensors, actuators, and microcontrollers within the context of rapid prototyping, making, and computer science education. JACDAC operates in a bus topology and requires devices have a microcontroller with UART, Timer, and GPIO interrupt capabilities.
 
-What is striking about the previous statement is the revelation that MCU programming has transformed from a _highly specialised domain_ (requiring the knowledge of low-level programming languages and the installation of complex toolchains) to a _more approachable, accessible domain_––children can now write and compile complete programs directly in a web browser using simpler higher-level programming languages. Even more striking is the _power of_ these higher level languages: one can write complete I2C or SPI drivers without learning any C++.
-
-Of course, children are not writing SPI or I2C drivers in these higher level languages, but rather _businesses looking to create accessories_ featuring peripherals that enhance the base offerings of the educationally focussed MCU boards they use. Businesses use these higher level languages because they are simpler than C or C++, and driver code is portable to any other MCU in the language ecosystem.
-
-I2C and SPI are widely used for communicating with peripherals and for good reason: these protocols are efficient, fast, and well-defined. However, whilst these protocols are great for peripherals mounted on the _same_ circuit board, they are hard for novice users to use with _external_ peripherals: asking a classroom of thirty 11––12 year old children to connect four wires correctly results in many failing peripherals.
-
-Various educational MCU-boards have devised solutions for this problem: the Arduino ecosystem uses "shields", a set of stackable peripheral boards that can only be plugged one-way to reach the main MCU. Also used by Arduino are grove connectors, a simple wire based ecosystem that allows the one-way connection of peripherals using a rugged connector. Other devices create custom connectors: the micro:bit features an edge connector for GPIO that allows easier, direct integration with accessories. Each of these approaches has a drawback: Arduino shields cannot be mounted anywhere other than directly onto the main board, grove connectors still require learning and expertise to connect things together, and the micro:bit's edge connector only allows a limited number of accessories to be connected at a time; all approaches increase the overall cost of accessories.
-
-As well as requiring an understanding of basic electronics, the programming interface provided by I2C and SPI is conceptually low-level: it uses addresses and registers to communicate with peripherals. Each I2C or SPI component has its own register layout that is chip specific––each different model of accelerometer will have a different register map. Unfortunately, this means that whilst driver code can be ported to any MCU in the language ecosystem, the addresses and registers used by driver code are specific to each peripheral. For I2C the situation gets more problematic as each model of a peripheral is assigned a device address which is peripheral unique, but not chip unique, so if two of the same model of peripheral are connected to the bus, addressing collisions occur.
-
-However, the greatest problem with I2C or SPI is the communication paradigm: Host / Peripheral (used in place of outdated Master / Slave terminology). This paradigm dictates that a single device orchestrates the operation of all devices on the bus, manually configuring, writing, and reading their memory. This scenario caters well for when there is only one Host device on the bus, but what if you want two Host devices to communicate with each other? Or you want to connect two devices with the exact the same peripherals by joining their buses? Or perhaps you want two Hosts to share the same peripheral? The only remaining way to realise these scenarios is to add a network interface, or define a custom serial protocol.
-
-For businesses, the choice of communication protocol for external peripherals seems a simple, harmless decision, however this choice has real-world impacts on user experience. Outside of the domain of education, these issues also impact hobbiests as they wire complex animatronics with many sensors, and professional engineers as they prototype new products with various permutations of hardware.
-
-We present JACDAC (Joint Asynchronous Communications, Device Agnostic Control): a single wire broadcast protocol for the plug and play of accessories for microcontrollers. JACDAC requires no additional hardware to operate and abstracts accessories as a set of interfaces rather than hardware registers so that driver code can be shared across different implementations. It uses dynamic addressing so that multiple of the same accessory can be connected simultaneously and it offers three different communication abstractions to cater for an ever-diverse set of use scenarios for accessories.
+Please visit the [motivation](#Motivation) section to read about the motivating factors for JACDAC.
 
 # The Physical Layer
 
@@ -248,7 +234,7 @@ In this example, three drivers are running the MessageBus driver in Broadcast mo
 
 The key difference in this mode is how packets are routed: _packets are matched on their class, rather than their address_. Broadcast mode can be combined with paired or virtual modes previously mentioned.
 
-# How does addressing actually work?
+<!-- # How does addressing actually work?
 
 After the description of driver modes it might not be clear how addresses are used in JACDAC, this section provides formalisation.
 
@@ -265,4 +251,24 @@ After the description of driver modes it might not be clear how addresses are us
 
 ![broadcast mode addressing](images/addressing-broadcast.svg)
 
-__Need to solidify addressing, it's currently not clear how it all fits together... need to write about the fact that because packets are received by a host driver using its own address it can infer that the packet came externally, addressing diagrams might be useful__
+__Need to solidify addressing, it's currently not clear how it all fits together... need to write about the fact that because packets are received by a host driver using its own address it can infer that the packet came externally, addressing diagrams might be useful__ -->
+
+# Motivation
+
+Microcontrollers (MCUs) are traditionally used to monitor and actuate our environments (the Internet of Things), to prototype new products for consumers, and to enhance the creations of hobbyist-makers. However, more recently MCUs are being used to educate children on the fundamentals of computer science, helping them to understand the increasingly technologically dense world around them.
+
+What is striking about the previous statement is the revelation that MCU programming has transformed from a _highly specialised domain_ (requiring the knowledge of low-level programming languages and the installation of complex toolchains) to a _more approachable, accessible domain_––children can now write and compile complete programs directly in a web browser using simpler higher-level programming languages. Even more striking is the _power of_ these higher level languages: one can write complete I2C or SPI drivers without learning any C++.
+
+Of course, children are not writing SPI or I2C drivers in these higher level languages, but rather _businesses looking to create accessories_ featuring peripherals that enhance the base offerings of the educationally focussed MCU boards they use. Businesses use these higher level languages because they are simpler than C or C++, and driver code is portable to any other MCU in the language ecosystem.
+
+I2C and SPI are widely used for communicating with peripherals and for good reason: these protocols are efficient, fast, and well-defined. However, whilst these protocols are great for peripherals mounted on the _same_ circuit board, they are hard for novice users to use with _external_ peripherals: asking a classroom of thirty 11––12 year old children to connect four wires correctly results in many failing peripherals.
+
+Various educational MCU-boards have devised solutions for this problem: the Arduino ecosystem uses "shields", a set of stackable peripheral boards that can only be plugged one-way to reach the main MCU. Also used by Arduino are grove connectors, a simple wire based ecosystem that allows the one-way connection of peripherals using a rugged connector. Other devices create custom connectors: the micro:bit features an edge connector for GPIO that allows easier, direct integration with accessories. Each of these approaches has a drawback: Arduino shields cannot be mounted anywhere other than directly onto the main board, grove connectors still require learning and expertise to connect things together, and the micro:bit's edge connector only allows a limited number of accessories to be connected at a time; all approaches increase the overall cost of accessories.
+
+As well as requiring an understanding of basic electronics, the programming interface provided by I2C and SPI is conceptually low-level: it uses addresses and registers to communicate with peripherals. Each I2C or SPI component has its own register layout that is chip specific––each different model of accelerometer will have a different register map. Unfortunately, this means that whilst driver code can be ported to any MCU in the language ecosystem, the addresses and registers used by driver code are specific to each peripheral. For I2C the situation gets more problematic as each model of a peripheral is assigned a device address which is peripheral unique, but not chip unique, so if two of the same model of peripheral are connected to the bus, addressing collisions occur.
+
+However, the greatest problem with I2C or SPI is the communication paradigm: Host / Peripheral (used in place of outdated Master / Slave terminology). This paradigm dictates that a single device orchestrates the operation of all devices on the bus, manually configuring, writing, and reading their memory. This scenario caters well for when there is only one Host device on the bus, but what if you want two Host devices to communicate with each other? Or you want to connect two devices with the exact the same peripherals by joining their buses? Or perhaps you want two Hosts to share the same peripheral? The only remaining way to realise these scenarios is to add a network interface, or define a custom serial protocol.
+
+For businesses, the choice of communication protocol for external peripherals seems a simple, harmless decision, however this choice has real-world impacts on user experience. Outside of the domain of education, these issues also impact hobbiests as they wire complex animatronics with many sensors, and professional engineers as they prototype new products with various permutations of hardware.
+
+We present JACDAC (Joint Asynchronous Communications, Device Agnostic Control): a single wire broadcast protocol for the plug and play of accessories for microcontrollers. JACDAC requires no additional hardware to operate and abstracts accessories as a set of interfaces rather than hardware registers so that driver code can be shared across different implementations. It uses dynamic addressing so that multiple of the same accessory can be connected simultaneously and it offers three different communication abstractions to cater for an ever-diverse set of use scenarios for accessories.
