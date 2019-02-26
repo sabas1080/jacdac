@@ -4,6 +4,36 @@ JACDAC (Joint Asynchronous Communications; Device Agnostic Control) is a single 
 
 Please visit the [motivation](#Motivation) section to read about the motivating factors for JACDAC.
 
+# Glossary
+
+* JACDAC - Joint Asynchronous Communications; Device Agnostic Control (JACDAC) is a single wire protocol for the plug and play of sensors, actuators, and microcontrollers for use within the contexts of rapid prototyping, making, and computer science education.
+
+## Physical Layer Terminology
+* Physical Layer - The layer that handles transmission and reception of packets with other devices. Specifically, we refer to the line level state i.e. what a packet looks like.
+* Bus - JACDAC devices are connected to each other using a "single cable". This is simply a conceptual notion, as JACDAC devices can be connected with multiple cables.
+* Packet (commonly referred to as a JDPacket) - The structure of the data packet transmitted on the Bus.
+* Lo Pulse - The period for which the bus is driven lo (10, 20, 40, or 80 microseconds), indicating the upcoming baud rate of the packet.
+* Frame - A frame is formed of a Lo Pulse followed by a packet.
+
+## Device Terminology
+
+* Device - A JACDAC device is composed of 0 or more drivers.
+* Session identifier (previously address) - Identifies a device and its capabilities.
+* Unique identifier (previously serial number) - uniquely identifies a device, using EUI64 format. Any JACDAC device must have a unique identifier.
+
+## Service Terminology
+* Service (previously driver) - An interface to the JACDAC bus that provisions a resource for a user.
+* Service State (previous device) - Maintains the state of a service at runtime.
+* Service Class (previously driver class) - provides typing for a service i.e. an accelerometer
+* Host Service - Hosts a resource for others to use on the bus. This type of service is enumerated on the bus in control packets.
+* Client Service - Uses a resource provided by a host on the bus. This type of service is not enumerated on the bus.
+* Host Broadcast Service (previously broadcast driver) - Packets are received based on class in addition to receiving packets directly using address and offset.
+* Client Broadcast Service (Previously SnifferDriver) - Packets are received based on class and cannot be received directly as the service is not enumerated in control packets. This can be thought of as "wireshark" for a specific service class.
+* Control Service - Handles the routing of packets to the appropriate drivers and the mounting / unmounting of devices. The control service is not enumerated on the bus and is addressed using the special broadcast session identifier "0".
+* Control Packet - A control packet enumerates a device on the bus and contains the unique device identifier and the services it is presenting for others to use.
+* ServiceInformation - is the name for the services data provided in a control packet.
+* Service Offset - When combined with a  device address, it allows the identification of a specific Host Service.
+
 # The Physical Layer
 
 For reliable communications, embedded programmers tend to stay clear of UART: there is no common clock, the baud rate must be pre-determined, and there is no bus arbitration on the reception and transmission lines. Fortunately, hardware has improved over time adding DMA buffering and auto-baud detection thus improving reliability.
