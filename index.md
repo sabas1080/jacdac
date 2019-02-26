@@ -2,7 +2,7 @@
 
 JACDAC (Joint Asynchronous Communications; Device Agnostic Control) is a single wire protocol for the plug and play of sensors, actuators, and microcontrollers within the context of rapid prototyping, making, and computer science education. JACDAC operates in a bus topology and requires devices have a microcontroller with UART, Timer, and GPIO interrupt capabilities.
 
-Please visit the [motivation](#Motivation) section to read about the motivating factors for JACDAC.
+Please visit the [motivation](#motivation) section to read about the motivating factors for JACDAC.
 
 # The Physical Layer
 
