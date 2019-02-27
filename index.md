@@ -18,8 +18,8 @@ Please visit the [motivation](#Motivation) section to read about the motivating 
 ## Device Terminology
 
 * Device - A JACDAC device is composed of 0 or more drivers.
-* Session identifier (previously address) - Identifies a device and its capabilities.
-* Unique identifier (previously serial number) - uniquely identifies a device, using EUI64 format. Any JACDAC device must have a unique identifier.
+* Device address - Identifies a device and its capabilities.
+* Unique device identifier (previously serial number) - uniquely identifies a device, using EUI64 format. Any JACDAC device must have a unique identifier.
 
 ## Service Terminology
 * Service (previously driver) - An interface to the JACDAC bus that provisions a resource for a user.
