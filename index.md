@@ -32,7 +32,7 @@ Please visit the [motivation](#Motivation) section to read about the motivating 
 * Control Service - Handles the routing of packets to the appropriate drivers and the mounting / unmounting of devices. The control service is not enumerated on the bus and is addressed using the special broadcast session identifier "0".
 * Control Packet - A control packet enumerates a device on the bus and contains the unique device identifier and the services it is presenting for others to use.
 * ServiceInformation - is the name for the services data provided in a control packet.
-* Service Offset - When combined with a  device address, it allows the identification of a specific Host Service.
+* Service Number - When combined with a  device address, it allows the identification of a specific Host Service on a device.
 
 # The Physical Layer
 
