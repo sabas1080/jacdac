@@ -17,7 +17,7 @@ Please visit the [motivation](#Motivation) section to read about the motivating 
 
 ## Device Terminology
 
-* Device - A JACDAC device is composed of 0 or more drivers.
+* Device - A JACDAC device is composed of 0 or more services.
 * Device address - Identifies a device and its capabilities.
 * Unique device identifier (previously serial number) - uniquely identifies a device, using EUI64 format. Any JACDAC device must have a unique identifier.
 
@@ -27,7 +27,7 @@ Please visit the [motivation](#Motivation) section to read about the motivating 
 * Service Class (previously driver class) - provides typing for a service i.e. an accelerometer
 * Host Service - Hosts a resource for others to use on the bus. This type of service is enumerated on the bus in control packets.
 * Client Service - Uses a resource provided by a host on the bus. This type of service is not enumerated on the bus.
-* Host Broadcast Service (previously broadcast driver) - Packets are received based on class in addition to receiving packets directly using address and offset.
+* Host Broadcast Service (previously broadcast driver) - Packets are received based on class in addition to receiving packets directly using address and service number.
 * Client Broadcast Service (Previously SnifferDriver) - Packets are received based on class and cannot be received directly as the service is not enumerated in control packets. This can be thought of as "wireshark" for a specific service class.
 * Control Service - Handles the routing of packets to the appropriate drivers and the mounting / unmounting of devices. The control service is not enumerated on the bus and is addressed using the special broadcast session identifier "0".
 * Control Packet - A control packet enumerates a device on the bus and contains the unique device identifier and the services it is presenting for others to use.
