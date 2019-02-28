@@ -53,7 +53,8 @@ def handle_addresses(buses):
     while not done:
         done = True
         for b in buses:
-            bus_addresses = [d.address for d in b.devices if d.state == d.JD_DEVICE_STATE_ALLOCATED]
+            bus_addresses = [d.address for d in b.devices]
+            # bus_addresses = [d.address for d in b.devices if d.state == d.JD_DEVICE_STATE_ALLOCATED]
             # bus_addresses = []
             for device in b.devices:
                 if device.state == device.JD_DEVICE_STATE_UNITIALISED:
