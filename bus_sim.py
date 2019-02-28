@@ -29,7 +29,8 @@ class JDDevice:
         self.count = 0
         self.address = random.randint(1, 255)
 
-        allocated = random.randint(0, 1)
+        # allocated = random.randint(0, 10)
+        allocated = 0
         if allocated == 0:
             existing_addresses = [d.address for d in existing if d.state == d.JD_DEVICE_STATE_ALLOCATED]
             self.address = self.__generate_unique_addr(existing_addresses)
@@ -93,7 +94,7 @@ if ask_for_input:
     devices_per_bus = int(input("Enter the number of devices per bus:"))
 else:
     bus_count = 2
-    devices_per_bus = 120
+    devices_per_bus = 60
 
 # create buses
 buses = []
@@ -116,9 +117,11 @@ if bus_count * devices_per_bus > 254:
     print("cannot merge buses, total device count is greater than the maximum supported device amount (254)")
     exit()
 
-print("merging buses")
-
+# list(set([d.address for d in buses[0].devices]) & set([d.address for d in buses[1].devices]))
 merged_bus = JDBus(buses)
+duplicate_count = len(merged_bus.devices) - len(set([device.address for device in merged_bus.devices]))
+
+print("%d duplicates detected, merging buses" % duplicate_count)
 handle_addresses([merged_bus])
 
-print ("Merging of buses took %d moves" % ( buses[i].moves))
+print ("Merging of buses took %d moves" % ( merged_bus.moves))
