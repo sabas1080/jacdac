@@ -4,57 +4,39 @@ JACDAC (Joint Asynchronous Communications; Device Agnostic Control) is a single 
 
 Please visit the [motivation](#Motivation) section to read about the motivating factors for JACDAC.
 
-# Glossary
-
-* JACDAC - Joint Asynchronous Communications; Device Agnostic Control (JACDAC) is a single wire protocol for the plug and play of sensors, actuators, and microcontrollers for use within the contexts of rapid prototyping, making, and computer science education.
-
-## Physical Layer Terminology
-* Physical Layer - The layer that handles transmission and reception of packets with other devices. Specifically, we refer to the line level state i.e. what a packet looks like.
-* Bus - JACDAC devices are connected to each other using a "single cable". This is simply a conceptual notion, as JACDAC devices can be connected with multiple cables.
-* Packet (commonly referred to as a JDPacket) - The structure of the data packet transmitted on the Bus.
-* Lo Pulse - The period for which the bus is driven lo (10, 20, 40, or 80 microseconds), indicating the upcoming baud rate of the packet.
-* Frame - A frame is formed of a Lo Pulse followed by a packet.
-
-## Device Terminology
-
-* Device - A JACDAC device is composed of 0 or more services.
-* Device address - Identifies a device and its capabilities.
-* Unique device identifier (previously serial number) - uniquely identifies a device, using EUI64 format. Any JACDAC device must have a unique identifier.
-
-## Service Terminology
-* Service (previously driver) - An interface to the JACDAC bus that provisions a resource for a user.
-* Service State (previous device) - Maintains the state of a service at runtime.
-* Service Class (previously driver class) - provides typing for a service i.e. an accelerometer
-* Host Service - Hosts a resource for others to use on the bus. This type of service is enumerated on the bus in control packets.
-* Client Service - Uses a resource provided by a host on the bus. This type of service is not enumerated on the bus.
-* Host Broadcast Service (previously broadcast driver) - Packets are received based on class in addition to receiving packets directly using address and service number.
-* Client Broadcast Service (Previously SnifferDriver) - Packets are received based on class and cannot be received directly as the service is not enumerated in control packets. This can be thought of as "wireshark" for a specific service class.
-* Control Service - Handles the routing of packets to the appropriate drivers and the mounting / unmounting of devices. The control service is not enumerated on the bus and is addressed using the special broadcast session identifier "0".
-* Control Packet - A control packet enumerates a device on the bus and contains the unique device identifier and the services it is presenting for others to use.
-* ServiceInformation - is the name for the services data provided in a control packet.
-* Service Number - When combined with a  device address, it allows the identification of a specific Host Service on a device.
-
-__NOTE: Most timings from this point on are described in terms of bytes (a UART byte also includes 1 start bit and one stop bit).__
-
-# The Physical Layer
+# Protocol Overview
 
 For reliable communications, embedded programmers tend to stay clear of UART: there is no common clock, the baud rate must be pre-determined, and there is no bus arbitration on the reception and transmission lines. Fortunately, hardware has improved over time adding DMA buffering and auto-baud detection thus improving reliability.
 
-JACDAC uses the built-in UART module common to most MCUs as its communication mechanism, and instead of running two separate wires for transmission and reception, JACDAC uses just one wire for both in a bus topology. JACDAC performs bus arbitration using a GPIO interrupt attached to the bus allowing the MCU to enter a low power state between communications.
+JACDAC uses the built-in UART module common to most MCUs as its communication mechanism, and instead of running two separate wires for transmission and reception, JACDAC uses just one wire for both in a bus topology. JACDAC performs bus arbitration by driving a GPIO attached to the bus lo, allowing MCUs to enter a low power state between communications.
 
-JACDAC supports four baud rates: 1Mbaud, 500Kbaud, 250Kbaud, 125Kbaud, allowing cheaper MCUs to be used. Ideally all JACDAC peripherals should run at 1Mbaud, but this baud rate is only supported on expensive MCUs which are not necessary in all scenarios. Take for example a JACDAC button peripheral, all that needs to be communicated is the state of the button (1 byte) and a control packet (12 bytes); using a $1.50 MCU to do this is extreme. By supporting multiple baud rates, JACDAC enables low cost MCUs to be used in JACDAC peripherals with small payloads, where the use of lower baud rates has minimal impact on the throughput of the bus.
+JACDAC supports four baud rates: 1Mbaud, 500Kbaud, 250Kbaud, 125Kbaud, allowing cheaper MCUs to be used. By supporting multiple baud rates, JACDAC enables low cost MCUs to be used in JACDAC peripherals with small payloads, where the use of lower baud rates has minimal impact on the throughput of the bus.
 
 UART hardware modules traditionally occupy two IO lines, one for transmission the other for reception; when idle, IO lines float high such that they read a logical one. This behaviour remains the same in JACDAC: the bus floats high when no devices are transmitting.
 
-what do jacdac devices send?
+JACDAC devices send packets. When packets are sent on the bus, they are referred to as a frame as the process of sending includes bus arbitration.
 
-Bus arbitration is achieved through the transmitting device driving the line low for 1 byte at the desired baud rate, beginning transmission minimally 40 microseconds (4 bytes at 1Mbaud) later. This approach allows devices to listen to the bus in a low power mode using a GPIO interrupt, power up, and configure the UART hardware when required.
+Packets are used to communicate with Services, with devices hosting 1 or more Services. Host services are enumerated on the bus, allowing other devices connected to the bus to configure and use them. Received packets are routed to services via a control layer (visualised below).
 
-![picture of a low period followed by data](images/physical.svg)
+![picture of JACDAC devices in bus topology](images/bus.svg)
 
-The process described is visualised in the image above. The bus is high for a period of time, driven low for 10 microseconds (10 bits at 1Mbaud), data following 40 microseconds later.
+## Features
+* Reuse of existing hardware
+* Many master operation
+* packet oriented
+* Bus Topology
+* Plug and play
+* Comms overview
 
-## Physical Layer Requirements
+## User Benefits
+
+## Manufacturer Benefits
+
+# The Physical Layer
+
+This section describes the hardware requirements, packet format, and the logic line level transmission process. Protocol timings are generally described in terms of bytes, but in JACDAC, a byte is 10 bits, as 1 UART start bit and 1 stop bit are included in the total size.
+
+## Hardware Requirements
 
 To operate on the JACDAC bus, an MCU must be capable of:
 
@@ -64,20 +46,43 @@ To operate on the JACDAC bus, an MCU must be capable of:
 * The ability to keep time (whether through instruction counting or a hardware timer).
 * The ability to generate random numbers (or at least seed a software random number generator).
 
-When the JACDAC bus is in idle state, all MCUs on the bus should configure their TX/RX pin to be an input with a PullUp. In this state, the bus will read high.
+When the JACDAC bus is in idle state, all MCUs on the bus must configure their TX/RX pin to be an input with a pull up to 3.3v. In this state, the bus will read high.
 
-When an MCU wants to transmit, it should drive the bus low for 10 bits (1 byte) at the desired baud rate and wait for a minimum of 4 bytes at 1Mbaud before transmitting data.
+When an MCU wants to transmit, it must drive the bus low for 10 bits (1 byte) at the desired baud rate and wait for a minimum of 4 bytes at 1Mbaud before transmitting data. This is known as the lo pulse, the timings dictate the baud rate of the upcoming transmission:
 
 * 10 us at 1 MBaud
 * 20 us at 500 KBaud
 * 40 us at 250 KBaud
 * 80 us at 125 KBaud
 
-When an MCU spots the beginning of a transmission (a low pulse), it has a minimum of 40 microseconds (4 bytes at 1Mbaud) and a maximum 160 microseconds (2 bytes at the 125Kbaud) to configure any hardware registers and software buffers to receive the a JACDAC packet header. After receiving the header, an MCU can choose to either receive the remainder or ignore a packet.
+When an MCU spots the beginning of a transmission (a low pulse), it has a minimum of 40 microseconds (4 bytes at 1Mbaud) and a maximum 160 microseconds (2 bytes at the 125Kbaud) to configure any hardware registers and software buffers to receive the a JACDAC packet header. After receiving the header, an MCU should either receive the remainder or ignore a packet.
 
 Devices that communicate at baud rates faster than 125Kbaud must also be capable of communicating at all slower baud rates e.g. a device that communicates at 1Mbaud must also be able to communicate at 500, 250, and 125 Kbaud.
 
-It should be noted that despite supporting lower baud rates, developers should aim to achieve the maximum baud rate possible with their chosen MCU. This is for reasons of bus efficiency, as the presence of a large number of slower devices reduces the throughput of the bus.
+It should be noted that despite supporting lower baud rates, developers must achieve the maximum baud rate possible with their chosen MCU. This is for reasons of bus efficiency, as the presence of a large number of slower devices reduces the throughput of the bus.
+
+## JACDAC Packet Format
+
+The table below specifies the packet structure of JACDAC packets transmitted on the bus. For more detail on each field please visit the [software layer](#software-layer) section of this document.
+
+| Field Size (bits) 	| Name           	| Description                                                        	|
+|-------------------	|----------------	|--------------------------------------------------------------------	|
+| 12                	| CRC            	| A 12-bit CRC used for packet validation.                           	|
+| 4                 	| service_number 	| A number that identifies a service on a device.                    	|
+| 8                 	| device_address 	| A number that identifies a device on the bus.                      	|
+| 7                 	| size           	| The size of the data field 0-127.                                  	|
+| 1                 	| version        	| A single bit that indicates the JACDAC version.                    	|
+| 8 * size          	| data           	| An array of bytes, whose size is dictated by the size field above. 	|
+
+## Logic Line Level Transmission
+
+Bus arbitration is achieved through the transmitting device driving the line low for 1 byte at the desired baud rate, beginning transmission minimally 40 microseconds (4 bytes at 1Mbaud) later. This approach allows devices to listen to the bus in a low power mode using a GPIO interrupt, power up, and configure the UART hardware when required.
+
+![picture of a low period followed by data](images/physical.svg)
+
+The process described is visualised in the image above. The bus is high for a period of time, driven low for 10 microseconds (10 bits at 1Mbaud), data following 40 microseconds later.
+
+## Timings
 
 ## InterLoData Spacing
 
@@ -91,7 +96,7 @@ The maximum permitted time between bytes is two bytes at the minimum baud rate (
 
 ![diagram of the maximum spacing between bytes](images/interbyte-spacing.svg)
 
-To be JACDAC compatible, devices should never near the maximum interbyte spacing.
+To be JACDAC compliant, devices should never near the maximum interbyte spacing.
 
 ## Interframe Spacing
 
@@ -273,24 +278,35 @@ In this example, three drivers are running the MessageBus driver in Broadcast mo
 
 The key difference in this mode is how packets are routed: _packets are matched on their class, rather than their address_. Broadcast mode can be combined with paired or virtual modes previously mentioned.
 
-<!-- # How does addressing actually work?
+# Glossary
 
-After the description of driver modes it might not be clear how addresses are used in JACDAC, this section provides formalisation.
+* JACDAC - Joint Asynchronous Communications; Device Agnostic Control (JACDAC) is a single wire protocol for the plug and play of sensors, actuators, and microcontrollers for use within the contexts of rapid prototyping, making, and computer science education.
 
-## Virtual Mode
+## Physical Layer Terminology
+* Physical Layer - The layer that handles transmission and reception of packets with other devices. Specifically, we refer to the line level state i.e. what a packet looks like.
+* Bus - JACDAC devices are connected to each other using a "single cable". This is simply a conceptual notion, as JACDAC devices can be connected with multiple cables.
+* Packet (commonly referred to as a JDPacket) - The structure of the data packet transmitted on the Bus.
+* Lo Pulse - The period for which the bus is driven lo (10, 20, 40, or 80 microseconds), indicating the upcoming baud rate of the packet.
+* Frame - A frame is formed of a Lo Pulse followed by a packet.
 
-![virtual mode addressing](images/addressing-virtual.svg)
+## Device Terminology
 
-## Paired Mode
+* Device - A JACDAC device is composed of 0 or more services.
+* Device address - Identifies a device and its capabilities.
+* Unique device identifier (previously serial number) - uniquely identifies a device, using EUI64 format. Any JACDAC device must have a unique identifier.
 
-![paired mode addressing](images/addressing-paired.svg)
-
-
-## Broadcast Mode
-
-![broadcast mode addressing](images/addressing-broadcast.svg)
-
-__Need to solidify addressing, it's currently not clear how it all fits together... need to write about the fact that because packets are received by a host driver using its own address it can infer that the packet came externally, addressing diagrams might be useful__ -->
+## Service Terminology
+* Service (previously driver) - An interface to the JACDAC bus that provisions a resource for a user.
+* Service State (previous device) - Maintains the state of a service at runtime.
+* Service Class (previously driver class) - provides typing for a service i.e. an accelerometer
+* Host Service - Hosts a resource for others to use on the bus. This type of service is enumerated on the bus in control packets.
+* Client Service - Uses a resource provided by a host on the bus. This type of service is not enumerated on the bus.
+* Host Broadcast Service (previously broadcast driver) - Packets are received based on class in addition to receiving packets directly using address and service number.
+* Client Broadcast Service (Previously SnifferDriver) - Packets are received based on class and cannot be received directly as the service is not enumerated in control packets. This can be thought of as "wireshark" for a specific service class.
+* Control Service - Handles the routing of packets to the appropriate drivers and the mounting / unmounting of devices. The control service is not enumerated on the bus and is addressed using the special broadcast session identifier "0".
+* Control Packet - A control packet enumerates a device on the bus and contains the unique device identifier and the services it is presenting for others to use.
+* ServiceInformation - is the name for the services data provided in a control packet.
+* Service Number - When combined with a  device address, it allows the identification of a specific Host Service on a device.
 
 # Motivation
 
@@ -311,3 +327,31 @@ However, the greatest problem with I2C or SPI is the communication paradigm: Hos
 For businesses, the choice of communication protocol for external peripherals seems a simple, harmless decision, however this choice has real-world impacts on user experience. Outside of the domain of education, these issues also impact hobbiests as they wire complex animatronics with many sensors, and professional engineers as they prototype new products with various permutations of hardware.
 
 We present JACDAC (Joint Asynchronous Communications, Device Agnostic Control): a single wire broadcast protocol for the plug and play of accessories for microcontrollers. JACDAC requires no additional hardware to operate and abstracts accessories as a set of interfaces rather than hardware registers so that driver code can be shared across different implementations. It uses dynamic addressing so that multiple of the same accessory can be connected simultaneously and it offers three different communication abstractions to cater for an ever-diverse set of use scenarios for accessories.
+
+
+<!--
+# Extra Text
+
+_____
+
+Ideally all JACDAC peripherals should run at 1Mbaud, but this baud rate is only supported on expensive MCUs which are not necessary in all scenarios. Take for example a JACDAC button peripheral, all that needs to be communicated is the state of the button (1 byte) and a control packet (12 bytes); using a $1.50 MCU to do this is extreme.
+
+# How does addressing actually work?
+
+After the description of driver modes it might not be clear how addresses are used in JACDAC, this section provides formalisation.
+
+## Virtual Mode
+
+![virtual mode addressing](images/addressing-virtual.svg)
+
+## Paired Mode
+
+![paired mode addressing](images/addressing-paired.svg)
+
+
+## Broadcast Mode
+
+![broadcast mode addressing](images/addressing-broadcast.svg)
+
+__Need to solidify addressing, it's currently not clear how it all fits together... need to write about the fact that because packets are received by a host driver using its own address it can infer that the packet came externally, addressing diagrams might be useful__
+-->
