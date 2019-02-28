@@ -7,6 +7,7 @@ class JDBus:
             for b in buses:
                 self.devices += b.devices
         self.moves = 0
+        self.ticks = 0
 
     def addDevice(self, device):
         self.devices += [device]
@@ -68,6 +69,7 @@ def handle_addresses(buses):
                     if device.count == 3:
                         device.state = device.JD_DEVICE_STATE_ALLOCATED
 
+            time_incremented = False
             for d1 in b.devices:
                 for d2 in b.devices:
                     if d1 == d2:
@@ -77,12 +79,17 @@ def handle_addresses(buses):
                         done = False
                         order = random.randint(0,1)
 
-                        if order and d1.state != d1.JD_DEVICE_STATE_ALLOCATED:
+                        if order:
+                        # if order and d1.state != d1.JD_DEVICE_STATE_ALLOCATED:
                             d1.reinit(bus_addresses)
                         else:
                             d2.reinit(bus_addresses)
 
                         b.moves += 1
+
+                if not time_incremented:
+                    b.ticks += 1
+                    time_incremented = True
 
                 if d1.state == d1.JD_DEVICE_STATE_PROPOSING:
                     done = False
@@ -94,7 +101,7 @@ if ask_for_input:
     devices_per_bus = int(input("Enter the number of devices per bus:"))
 else:
     bus_count = 2
-    devices_per_bus = 60
+    devices_per_bus = 120
 
 # create buses
 buses = []
@@ -124,4 +131,4 @@ duplicate_count = len(merged_bus.devices) - len(set([device.address for device i
 print("%d duplicates detected, merging buses" % duplicate_count)
 handle_addresses([merged_bus])
 
-print ("Merging of buses took %d moves" % ( merged_bus.moves))
+print ("Merging of buses took %d ms and %d moves" % ( merged_bus.ticks * 500, merged_bus.moves))
