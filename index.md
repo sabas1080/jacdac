@@ -1,38 +1,34 @@
 # What is JACDAC?
 
-JACDAC (Joint Asynchronous Communications; Device Agnostic Control) is a single wire protocol for the plug and play of sensors, actuators, and microcontrollers for use within the contexts of rapid prototyping, making, and computer science education. JACDAC operates in a bus topology and requires devices have a microcontroller with UART, Timer, and GPIO interrupt capabilities.
+JACDAC (Joint Asynchronous Communications; Device Agnostic Control) is a single wire protocol for the plug and play of sensors, actuators, and microcontrollers (MCUs) for use within the contexts of rapid prototyping, making, and computer science education. JACDAC operates in a bus topology and requires devices have a microcontroller with UART, Timer, and GPIO interrupt capabilities.
 
 Please visit the [motivation](#Motivation) section to read about the motivating factors for JACDAC.
 
 # Protocol Overview
 
-**JACDAC** uses the built-in UART module common to most MCUs as its communication mechanism, but instead of separate wires for transmission and reception, JACDAC uses just one wire for both, operating in a bus topology. Four baud rates are supported: 1Mbaud, 500Kbaud, 250Kbaud, 125Kbaud, allowing cheaper MCUs to be used.
+**JACDAC** uses the built-in UART module common to most MCUs as its communication mechanism, but instead of separate wires for transmission and reception, JACDAC uses just one wire for both. Four baud rates are supported: 1Mbaud, 500Kbaud, 250Kbaud, 125Kbaud, allowing cheaper MCUs to be used.
 
-Microcontrollers that run the JACDAC protocol are known as **JACDAC devices**. They communicate **JACDAC Packets** to each other across a shared bus. Devices signal a packet transmission by driving the bus low for a period of time known as the **Lo Pulse**. The Lo Pulse dictates the baud rate of the upcoming UART transmission of a JACDAC packet.
+Microcontrollers that run the JACDAC protocol are known as **JACDAC devices**. They communicate **JACDAC Packets** to each other across a shared bus in a bus topology. Devices signal a packet transmission by driving the bus lo for a period of time known as the **lo pulse**. The length of the lo pulse dictates the baud rate of the upcoming UART transmission of a JACDAC packet.
 
-Conventionally in bus topologies there is the concept of a Master and Slave (widely regarded as outdated terminology). **JACDAC devices** are all Masters on the bus and instead host **Services** that operate in either **Host** or **Client** modes. **HostServices** allow other devices to configure and use resources that they would normally not have access to, examples include: an AccelerometerService, a DisplayService, or a NeopixelService. A **ClientService** interacts with HostServices as part of a microcontrollers' application.
+Conventionally in bus topologies there is the concept of a Master and Slave (widely regarded as outdated terminology). **JACDAC devices** are all Masters on the bus and instead run **Services** that operate in either **Host** or **Client** modes. **HostServices** allow other devices to configure and use resources that they would normally not have access to, examples include: an AccelerometerService, a DisplayService, or a NeopixelService. A **ClientService** interacts with HostServices as part of a microcontrollers' application.
 
 A device can enumerate one or more **HostServices** on the bus using a **ControlPacket**, which is a JACDAC Packet that contains: a 64-bit **unique device identifier**, the allocated **device address**, and an array of **ServiceInformation** which details the HostServices available for use by the bus. Enumeration is only required if a device is running a HostService; unenumerated devices are free to use enumerated services without enumerating themselves. The presence or absence of device ControlPackets indicates whether a device has been connected or removed from the bus.
 
-Received packets are routed to services via a control layer (
-).
+Received packets are routed to services via a control layer (shown below).
 
 ![picture of JACDAC devices in bus topology](images/bus.svg)
 
 ## Features
 
-  - Reuse of existing hardware: most MCUs support
+  - Reuse of existing hardware: most MCUs
   - One wire
   - Multi-master operation
   - Plug and play
   - Multi-baud support
-  - Code Re-use
+  - Code Re-use and Extensibility
+  - Sharing of peripherals
 
-## User Benefits
-
-## Manufacturer Benefits
-
-# The Physical Layer
+# Physical Layer Specifications
 
 This section describes the hardware requirements, packet format, and the logic line level transmission process. Protocol timings are generally described in terms of bytes: *a byte is 10 bits*, as 1 UART start and stop bit are included in the total size.
 
@@ -66,9 +62,13 @@ The table below specifies the packet structure of JACDAC packets transmitted on 
 | 1                 | version         | A single bit that indicates the JACDAC version.                    |
 | 8 \* size         | data            | An array of bytes, whose size is dictated by the size field above. |
 
-The packet structure is divided into two parts: \* *header*: the crc, service\_number, device\_address, size, and version fields before the data field. \* *data*: the data field onwards.
+The packet structure is divided into two parts:
 
-When packets are sent on the bus, they are referred to as a frame as the process of sending includes bus arbitration.
+* *header*: the crc, service\_number, device\_address, size, and version fields before the data field.
+
+* *data*: the data field onwards.
+
+When packets are sent on the bus they are referred to as a frame. A frame includes the bus arbitration process.
 
 ## Transmission & Reception
 
@@ -380,40 +380,3 @@ However, the greatest problem with I2C or SPI is the communication paradigm: Hos
 For businesses, the choice of communication protocol for external peripherals seems a simple, harmless decision, however this choice has real-world impacts on user experience. Outside of the domain of education, these issues also impact hobbiests as they wire complex animatronics with many sensors, and professional engineers as they prototype new products with various permutations of hardware.
 
 We present JACDAC (Joint Asynchronous Communications, Device Agnostic Control): a single wire broadcast protocol for the plug and play of accessories for microcontrollers. JACDAC requires no additional hardware to operate and abstracts accessories as a set of interfaces rather than hardware registers so that driver code can be shared across different implementations. It uses dynamic addressing so that multiple of the same accessory can be connected simultaneously and it offers three different communication abstractions to cater for an ever-diverse set of use scenarios for accessories.
-
-<!--
-# Extra Text
-
-JACDAC device HostServices
-
-_____
-
-Ideally all JACDAC peripherals should run at 1Mbaud, but this baud rate is only supported on expensive MCUs which are not necessary in all scenarios. Take for example a JACDAC button peripheral, all that needs to be communicated is the state of the button (1 byte) and a control packet (12 bytes); using a $1.50 MCU to do this is extreme.
-
-# How does addressing actually work?
-
-After the description of driver modes it might not be clear how addresses are used in JACDAC, this section provides formalisation.
-
-## Virtual Mode
-
-![virtual mode addressing](images/addressing-virtual.svg)
-
-## Paired Mode
-
-![paired mode addressing](images/addressing-paired.svg)
-
-
-## Broadcast Mode
-
-![broadcast mode addressing](images/addressing-broadcast.svg)
-
-__Need to solidify addressing, it's currently not clear how it all fits together... need to write about the fact that because packets are received by a host driver using its own address it can infer that the packet came externally, addressing diagrams might be useful__
-
-For reliable communications, embedded programmers tend to stay clear of UART: there is no common clock, the baud rate must be pre-determined, and there is no bus arbitration on the reception and transmission lines. Fortunately, hardware has improved over time adding DMA buffering and auto-baud detection thus improving reliability.
-
-JACDAC uses the built-in UART module common to most MCUs as its communication mechanism, but instead of running two separate wires for transmission and reception, JACDAC uses just one wire for both in a bus topology.
-
-JACDAC supports four baud rates: 1Mbaud, 500Kbaud, 250Kbaud, 125Kbaud, allowing cheaper MCUs to be used. By supporting multiple baud rates, JACDAC enables low cost MCUs to be used in JACDAC peripherals with small payloads, where the use of lower baud rates has minimal impact on the throughput of the bus.
-
-This approach allows devices to listen to the bus in a low power mode using a GPIO interrupt, enabling UART hardware only when required. As with traditional UART, when no device is transmitting the bus floats high.
--->
