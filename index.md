@@ -1,3 +1,4 @@
+# Contents  <!-- omit in toc -->
 - [What is JACDAC?](#what-is-jacdac)
 - [Protocol Overview](#protocol-overview)
   - [Features](#features)
