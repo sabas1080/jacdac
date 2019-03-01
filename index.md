@@ -64,7 +64,7 @@ Each JACDAC device has a simple stack featuring: (1) a physical layer handling t
 [Back to top](#protocol-overview)
 
 ## Features
-
+**TODO:**
   - Reuse of existing hardware: most MCUs
   - One wire
   - Multi-master operation
@@ -193,13 +193,13 @@ A state diagram for error detection when receiving a packet is shown below:
 
 Bus arbitration is performed through pulsing the bus low for 10 bits at the desired baud rate. However, a device could disable GPIO interrupts and initiate the process of transmission by driving the bus low whilst another device is doing the same:
 
-![diagram of potential bus collision](images/bus-collision.svg)
+<img src="images/bus-collision.svg" alt-text="diagram of potential bus collision" style="max-height:400px;"/>
 
 The diagram above exemplifies the race condition described previously showing two overlapping lo pulses and communications.
 
 To prevent the race condition, JACDAC devices must check the bus state before beginning the lo pulse:
 
-![diagram of ideal bus collision](images/bus-collision-good.svg)
+<img src="images/bus-collision-good.svg" alt-text="diagram of ideal bus collision" style="max-height:400px;"/>
 
 If the bus state is lo when performing this check, devices must enter an error state (as the lo pulse may be improperly measured) and wait for the bus to return to idle.
 
@@ -216,7 +216,7 @@ This section discusses the control layer and specifies: the purpose and implemen
 
 ## Control Packets
 
-Each device has a **ControlService** that sends a **ControlPacket** every 500 ms. A ControlPacket contains information about the device including: a unique device identifier, device address, and available HostServices for use by the bus. The prescence or absence of ControlPackets allow JACDAC devices to determine if a device has been connected or removed from the bus.
+Each device must have a **ControlService**, or at least sends a **ControlPacket** every 500 ms. A ControlPacket contains information about the device including: a unique device identifier, device address, and available HostServices for use by the bus. The prescence or absence of ControlPackets allow JACDAC devices to determine if a device has been connected or removed from the bus.
 
 A control packet has the following structure:
 
