@@ -14,7 +14,7 @@ Conventionally in bus topologies there is the concept of a Master and Slave (wid
 
 A device can enumerate one or more **HostServices** on the bus using a **ControlPacket**, which is a JACDAC Packet that contains: a 64-bit **unique device identifier**, the allocated **device address**, and an array of **ServiceInformation** which details the HostServices available for use by the bus. Enumeration is only required if a device is running a HostService; unenumerated devices are free to use enumerated services without enumerating themselves. The presence or absence of device ControlPackets indicates whether a device has been connected or removed from the bus.
 
-Received packets are routed to services via a control layer (shown below).
+Each JACDAC device has a simple stack featuring: (1) a physical layer handling the transmission and reception of packets; (2) a control layer which performs the routing of packets; to (3) services running on the device. Complexity of the JACDAC stack scales with the capability of the microcontroller.
 
 ![picture of JACDAC devices in bus topology](images/bus.svg)
 
@@ -36,22 +36,15 @@ This section describes the hardware requirements, packet format, and the logic l
 
 To operate on the JACDAC bus, an MCU must be capable of:
 
-  - Communicating / receiving UART-style bytes using a single wire. (10
-    bits: 1 byte, 1 stop bit, 1 start bit).
-  - Reaching one of four baud rates: 1Mbaud, 500Kbaud, 250Kbaud,
-    125Kbaud.
-  - A GPIO with PullUp capabilities and interrupts. It’s far easier if
-    the pin used for UART tx/rx can also generate GPIO interrupts
-    (especially in CODAL).
-  - The ability to keep time (whether through instruction counting or a
-    hardware timer).
-  - The ability to generate random numbers (or at least seed a software
-    random number generator).
+  - Communicating / receiving UART-style bytes using a single wire. (10 bits: 1 byte, 1 stop bit, 1 start bit).
+  - Reaching one of four baud rates: 1Mbaud, 500Kbaud, 250Kbaud, 125Kbaud.
+  - A GPIO with PullUp capabilities and interrupts. It’s far easier if the pin used for UART tx/rx can also generate GPIO interrupts(especially in CODAL).
+  - The ability to keep time (whether through instruction counting or a hardware timer).
+  - The ability to generate random numbers (or at least seed a software random number generator).
 
 ## JACDAC Packet Format
 
-The table below specifies the packet structure of JACDAC packets transmitted on the bus. For more detail on each field please visit the
-[software layer](#software-layer) section of this document.
+The table below specifies the packet structure of JACDAC packets transmitted on the bus. Bytes are sent in little endian format. For more detail on each field please visit the [software layer](#software-layer) section of this document.
 
 | Field Size (bits) | Name            | Description                                                        |
 | ----------------- | --------------- | ------------------------------------------------------------------ |
@@ -68,7 +61,7 @@ The packet structure is divided into two parts:
 
 * *data*: the data field onwards.
 
-When packets are sent on the bus they are referred to as a frame. A frame includes the bus arbitration process.
+A frame refers to a packet that is sent on the bus and includes the bus arbitration process.
 
 ## Transmission & Reception
 
@@ -83,8 +76,7 @@ When an MCU wants to transmit a packet, it must drive the bus low for 10 bits (1
 | 40                  | 250                    |
 | 80                  | 125                    |
 
-When an MCU detects the beginning of a transmission (a low pulse), it has a minimum of 40 microseconds (4 bytes at 1Mbaud) and a maximum 160 microseconds (2 bytes at the 125Kbaud) to configure any hardware registers and software buffers to receive a JACDAC packet header. After receiving the header, an MCU should either receive the remainder or ignore a packet. A JACDAC packet that is transmitted on the wire
-(including bus arbitration) is known as a frame.
+When an MCU detects the beginning of a transmission (a low pulse), it has a minimum of 40 microseconds (4 bytes at 1Mbaud) and a maximum 160 microseconds (2 bytes at the 125Kbaud) to configure any hardware registers and software buffers to receive a JACDAC packet header. After receiving the header, an MCU should either receive the remainder or ignore a packet. A JACDAC packet that is transmitted on the wire is known as a frame as a frame includes the bus arbitration period as well as the packet itself.
 
 Devices that communicate at baud rates faster than 125Kbaud must also be capable of communicating at all slower baud rates e.g. a device that communicates at 1Mbaud must also be able to communicate at 500, 250, and 125 Kbaud.
 
@@ -104,98 +96,91 @@ To detect this time period, a device must capture the time from when the bus las
 
 ## Protocol Timings
 
-## InterLoData Spacing
+This section describes various protocol timings, if any of the following timings are violated, devices must enter an error state.
 
-The minimum time before data can be sent after a lo pulse is 40 microseconds, and the maximum gap before data begins is 160 microseconds
-(two bytes at the lowest baud); times are relative from the end of the lo pulse:
+### InterLoData Spacing
+
+The minimum time before data can be sent after a lo pulse is 40 microseconds, and the maximum gap before data begins is 160 microseconds (two bytes at the lowest baud); times are relative from the end of the lo pulse. All devices must enter an error state if a transmitting device exceeds this time.
 
 ![diagram of the maximum spacing between bytes](images/interlodata-spacing.svg)
 
-## Interbyte Spacing
+### Interbyte Spacing
 
-The maximum permitted time between bytes is two bytes at the minimum baud rate (125KBaud):
+The maximum permitted time between bytes is two bytes at the minimum baud rate (125KBaud). A transmitting device must never near the maximum interbyte spacing. All devices must enter an error state if a transmitting device exceeds this time.
 
 ![diagram of the maximum spacing between bytes](images/interbyte-spacing.svg)
 
-To be JACDAC compliant, devices should never near the maximum interbyte spacing.
+### Interframe Spacing
 
-## Interframe Spacing
-
-The minimum space between frames is also locked to two bytes at the minimum baud rate (125KBaud):
+The minimum space between frames is two bytes at the minimum baud rate (125KBaud). JACDAC devices should capture the time after receiving the last byte of a packet and observe the minimum interframe spacing. To prevent transmission of a frame at the same time as another device, devices must implement a random backoff for transmission.
 
 ![diagram of the maximum spacing between frames](images/interframe-spacing.svg)
 
-JACDAC devices must observe the minimum interframe spacing. The diagram above depicts an unrealistic scenario where another packet begins immediately after the interframe spacing. Devices should incorporate a random backoff so not to communicate at precisely the same times as another device.
-
 ## Bus Collisions
 
-Above we described that bus arbitration is performed through pulsing the bus low for 10 bits at the desired baud rate. However, a device could disable GPIO interrupts and initiate the process of transmission by driving the bus low whilst another device is doing the same. So what happens when the low pulses of two (or more) devices coincide?
+Bus arbitration is performed through pulsing the bus low for 10 bits at the desired baud rate. However, a device could disable GPIO interrupts and initiate the process of transmission by driving the bus low whilst another device is doing the same:
 
 ![diagram of potential bus collision](images/bus-collision.svg)
 
-The diagram above shows two devices overlapping their bus pulses. When data is transmitted on a perfect line, there is one possible error sources: UART framing errors. These framing errors could be caused by:
-1) a mismatch between the baud rate derived from the low pulse, and the actual transmission baud rate; and/or (2) overlapping transmissions.
+The diagram above exemplifies the race condition described previously showing two overlapping lo pulses and communications.
 
-We can easily reduce the probability of the first error source:
+To prevent the race condition, JACDAC devices must check the bus state before beginning the lo pulse:
 
 ![diagram of ideal bus collision](images/bus-collision-good.svg)
 
-In the diagram above, device two pulses low first. Before device one initiates a pulse it detects that the bus is already low and instead swaps to reception mode. *Therefore every device must check the bus state before initiating a transmission*.
+If the bus state is lo when performing this check, devices must enter an error state (as the lo pulse may be improperly measured) and wait for the bus to return to idle.
 
-Although we reduced the probability of two device pulses overlapping by checking the bus state first, there still remains some probability that two (or more) devices could pulse at the same time:
+If two devices begin the lo pulse at exactly the same time, the UART module on the transmitting MCU will detect an error
+(most likely a framing error), and the received crc will be incorrect.
 
-![diagram of bad bus collision](images/bus-collision-bad.svg)
+**BUS NACK required? Transmitting device might not have UART hardware that can detect this...**
 
-In this case, we expect the UART module on the MCU to detect an error
-(most likely a framing error), or the received crc to be incorrect.
+<!-- ![diagram of bad bus collision](images/bus-collision-bad.svg) -->
 
-# Software Layer
+# Control Layer Specifications
 
-![image of devices in a broadcast topology](images/bus.svg)
+This section discusses the control layer and specifies: the purpose and implementation Control Packets, device address assignment, and the routing of packets to Services.
 
-The image above shows JACDAC devices in the only supported topology:
-broadcast. Each device has a simple stack featuring: (1) a physical layer handling the transmission and reception of packets; (2) a logic layer which performs the routing of packets; to (3) device drivers running on the device. Devices are not modelled in JACDAC, instead devices expose drivers; a JACDAC device consists of 1 or more drivers. All devices are connected to a shared bus.
+## Control Packets
 
-Since the physical layer has been discussed previously, we move onto the logic layer
+Each device has a ControlService that sends a **ControlPacket** every 500 ms. A ControlPacket contains information about the device such as the unique device identifier, device address, and available HostServices. The prescence or absence of ControlPackets are what allows JACDAC to determine if a device has been connected or removed from the bus.
 
-## The Logic Layer
+A control packet has the following structure:
 
-The logic layer is formed of three elements:
+| Field Size (bits)      	| Name           	| Description                                                                                        	|
+|------------------------	|----------------	|----------------------------------------------------------------------------------------------------	|
+| 64                     	| udid           	| The unique device identifier (udid) for the device.                                                	|
+| 8                      	| device_address 	| The address allocated to the device that occupies the address field of a JACDAC packet             	|
+| 8                      	| device_flags   	| A field for the ControlService indicating the state of a device.                                   	|
+| N * ServiceInformation 	| data           	| The data field is filled with an array of HostServices operating on the device for use by the bus. 	|
 
-1.  Packets that are sent using the physical layer. 2.  On device routing to a destination driver. 3.  A logic driver to handle device enumeration.
+| Field Size (bits)      	| Name               	| Description                                                                                            	|
+|------------------------	|--------------------	|--------------------------------------------------------------------------------------------------------	|
+| 32                     	| service_class      	| This field indicates the type of service, much like a HID class used in USB.                           	|
+| 8                      	| service_flags      	| Flags for the service, optionally populated by a Service                                               	|
+| 4                      	| service_status     	| The status of the service. Used to indicate runtime errors.                                            	|
+| 4                      	| advertisement_size 	| A field that indicates the whether advertisement data is present. A maximum of 15 bytes are available. 	|
+| 8 * advertisement_size 	| advertisement_data 	| Optional advertisement data indicating runtime properties of the service.                              	|
 
-### Packet Structure
+## Device Address Assignment
 
-A JACDAC packet is simple, consisting of: a *crc* (cyclic redundancy check) to provide guarantees of packet consistency; an *address*
-indicating the source *or* destination address of a driver; the *size*
-of the data field; and finally the *data* payload specified by a driver. When a packet is received, the protocol will route packets to the driver with the given address.
-
-``` cpp struct JDPkt
-{
-    uint16_t crc;
-    uint8_t  address;
-    uint8_t  size;
-    uint8_t  data[32];
-}
-```
-
-### Routing a packet
+## Routing Packets
 
 With the limited information in the packet above, how do packets reach their destination?
 
-So to not to fill all packets with unnecessary metadata, JACDAC devices broadcast driver information every 500 milliseconds. All devices receive this information providing a mapping from a small 8-bit address to a fully enumerated driver. Conveniently, this also allows the detection of when drivers are connected or disconnected from the bus.
+So to not to fill all packets with unnecessary metadata, JACDAC devices broadcast service information every 500 milliseconds. All devices receive this information providing a mapping from a small 8-bit address to a fully enumerated service. Conveniently, this also allows the detection of when services are connected or disconnected from the bus.
 
-Driver information is shared using a special packet type called a
+Service information is shared using a special packet type called a
 `ControlPacket`, which is embedded inside a standard JACDAC packet. A
-`ControlPacket` contains: a *packet\_type*, used to differentiate between types of control packet; an *address*, which should be the same address that is used in a standard packet; any *flags* specified by the driver (the upper eight bits of which are reserved for the logic layer);
-a *driver\_class* used to indicate the type of driver it is (i.e. a Joystick); a *serial\_number* that uniquely identifies a driver; and finally any additional payload information specified by the driver.
+`ControlPacket` contains: a *packet\_type*, used to differentiate between types of control packet; an *address*, which should be the same address that is used in a standard packet; any *flags* specified by the service (the upper eight bits of which are reserved for the logic layer);
+a *service\_class* used to indicate the type of service it is (i.e. a Joystick); a *serial\_number* that uniquely identifies a service; and finally any additional payload information specified by the service.
 
 ``` cpp struct ControlPacket
 {
     uint8_t  packet_type;
     uint8_t  address;
     uint16_t flags;
-    uint32_t driver_class;
+    uint32_t service_class;
     uint32_t serial_number;
     uint8_t  data[20];
 };
@@ -203,27 +188,25 @@ a *driver\_class* used to indicate the type of driver it is (i.e. a Joystick); 
 
 Standard and `ControlPackets` form the basis of the JACDAC protocol.
 
-### The Logic Driver
+### The Logic Service
 
-The logic driver is responsible for managing address allocation and conflicts, and for signalling that devices have been connected or removed from the bus. On *all* JACDAC devices, the logic driver resides on address zero.
+The logic service is responsible for managing address allocation and conflicts, and for signalling that devices have been connected or removed from the bus. On *all* JACDAC devices, the logic service resides on address zero.
 
-The logic driver only receives `ControlPackets`; other drivers receive
-`ControlPackets` indirectly after the packet is processed by the logic driver. It then follows that all `ControlPackets` have the address zero, so to address *all* logic drivers connected to the bus.
+The logic service only receives `ControlPackets`; other services receive `ControlPackets` indirectly after the packet is processed by the logic service. It then follows that all `ControlPackets` have the address zero, so to address *all* logic services connected to the bus.
 
-Addresses are allocated by the logic driver and are initially computed by avoiding addresses already allocated on the bus. There is a 1 second
-(2 control packets) grace period where a driver control packet flags itself as uncertain. If during this period an address is contended, the uncertain driver must change it’s address.
+Addresses are allocated by the logic service and are initially computed by avoiding addresses already allocated on the bus. There is a 1 second (2 control packets) grace period where a service control packet flags itself as uncertain. If during this period an address is contended, the uncertain service must change it’s address.
 
 It is likely that two separate buses may be joined by a user. When this happens, addresses are resolved simply by a first-come-first-serve policy: the first device to transmit a `ControlPacket` with an address absolutely owns that address. Any device that exists on the joined bus with the same address must respect this and change address accordingly.
 
-Connecting a new driver is handled simply: the first control packet after the address allocation period is deemed “connected”. A disconnected driver is determined by the absence of two consecutive control packets (a period of 1 second).
+Connecting a new service is handled simply: the first control packet after the address allocation period is deemed “connected”. A disconnected service is determined by the absence of two consecutive control packets (a period of 1 second).
 
-# Drivers
+# Services
 
-Drivers build on the logic layer and expose usable APIs to the application programmer. Every driver has a class identifying the type of driver and a unique serial number to identify the driver––this is automatically performed by combining the device serial number and driver class.
+Services build on the logic layer and expose usable APIs to the application programmer. Every service has a class identifying the type of service and a unique serial number to identify the service––this is automatically performed by combining the device serial number and service class.
 
-At the software level, JACDAC drivers should subclass JDDriver:
+At the software level, JACDAC services should subclass JDService:
 
-``` cpp class JDDriver : public CodalComponent
+``` cpp class JDService : public CodalComponent
 {
     protected:
     JDDevice device;
@@ -231,7 +214,7 @@ At the software level, JACDAC drivers should subclass JDDriver:
     ...
 
     public:
-    JDDriver(JDDevice d);
+    JDService(JDDevice d);
 
     virtual int fillControlPacket(JDPkt* p);
 
@@ -243,7 +226,7 @@ At the software level, JACDAC drivers should subclass JDDriver:
 };
 ```
 
-The device member variable is accessed by the logic driver to maintain the state of an operating driver. The remaining member functions are invoked by the logic driver: `fillControlPacket`, invoked when the logic driver is queueing the drivers’ control packet, allows driver specific information to be added; `handleControlPacket` is invoked when a matching control packet is received; `handlePairingPacket` is called when a pairing ControlPacket is received; and `handlePacket` is invoked whenever a packet is seen with the drivers address.
+The device member variable is accessed by the logic service to maintain the state of an operating service. The remaining member functions are invoked by the logic service: `fillControlPacket`, invoked when the logic service is queueing the services’ control packet, allows service specific information to be added; `handleControlPacket` is invoked when a matching control packet is received; `handlePairingPacket` is called when a pairing ControlPacket is received; and `handlePacket` is invoked whenever a packet is seen with the services address.
 
 ``` cpp struct JDDevice
 {
@@ -251,16 +234,16 @@ The device member variable is accessed by the logic driver to maintain the state
     uint8_t rolling_counter;
     uint16_t flags;
     uint32_t serial_number;
-    uint32_t driver_class;
+    uint32_t service_class;
 };
 ```
 
-A JDDevice contains driver state used in `ControlPackets`. The
-*rolling\_counter* field is used by the logic driver to trigger various control packet events. The address of a driver is set by the logic driver and stored in the *address* field. Various constructors are available for this struct, please visit the API documentation.
+A JDDevice contains service state used in `ControlPackets`. The
+*rolling\_counter* field is used by the logic service to trigger various control packet events. The address of a service is set by the logic service and stored in the *address* field. Various constructors are available for this struct, please visit the API documentation.
 
-## Driver Paradigms
+## Service Paradigms
 
-While modelling every driver as a Host is one of the key design decisions of JACDAC, it would be naive to suggest that a broadcast communication paradigm is ideal in every scenario. However, use of a broadcast paradigm enables three communication abstractions:
+While modelling every service as a Host is one of the key design decisions of JACDAC, it would be naive to suggest that a broadcast communication paradigm is ideal in every scenario. However, use of a broadcast paradigm enables three communication abstractions:
 
 1.  **Virtual** –– Many Host, single peripheral. 2.  **Paired** –– Single Host, single peripheral. 3.  **Broadcast** –– Many Host, many peripheral.
 
@@ -268,32 +251,58 @@ An attentive reader may realise that one communication paradigm is missing: Sing
 
 ### Virtual Mode
 
-![image of drivers in a virtual mode](images/virtual.svg)
+![image of services in a virtual mode](images/virtual.svg)
 
-The diagram shows three devices two in virtual mode, with one device acting as the “host” of the PinDriver. The PinDriver allows remote control over the state of a pin.
+The diagram shows three devices two in virtual mode, with one device acting as the “host” of the PinService. The PinService allows remote control over the state of a pin.
 
-Virtual drivers are stubs that perform operations on a remote host; they are uninitialised until a control packet matching the class is seen on the bus. They are then populated with the host drivers’ information after receiving a matching control packet. Virtual drivers emit no control packets as they are not hosting a resource. If a host disappears, virtual drivers are set to their uninitialised state.
+Virtual services are stubs that perform operations on a remote host; they are uninitialised until a control packet matching the class is seen on the bus. They are then populated with the host services’ information after receiving a matching control packet. Virtual services emit no control packets as they are not hosting a resource. If a host disappears, virtual services are set to their uninitialised state.
 
-If a virtual driver would like to use a specific driver, an optional serial number can be provided––only the matched driver will be mounted. Alternate methods of mounting virtual drivers should be handled in software by placing additional information in driver control packets.
+If a virtual service would like to use a specific service, an optional serial number can be provided––only the matched service will be mounted. Alternate methods of mounting virtual services should be handled in software by placing additional information in service control packets.
 
 ### Paired Mode
 
-![image of drivers in a paired mode](images/paired.svg)
+![image of services in a paired mode](images/paired.svg)
 
-In Paired mode, two drivers are notionally bonded to each other at the software level. In this example there are three drivers: A paired host, a paired virtual, and an uninitialised virtual driver. It is important to highlight that although a host is present on the bus, only one virtual driver is initialised as logic drivers external to the pairing ignore packets emitted from these drivers until they are unpaired––hence the virtual driver is not initialised.
+In Paired mode, two services are notionally bonded to each other at the software level. In this example there are three services: A paired host, a paired virtual, and an uninitialised virtual service. It is important to highlight that although a host is present on the bus, only one virtual service is initialised as logic services external to the pairing ignore packets emitted from these services until they are unpaired––hence the virtual service is not initialised.
 
-When paired to another driver, JDDrivers create a Virtual stub of their partner and can observe standard packets emitted by them. Drivers should guarantee that when paired, only their partner can access and configure them. The Virtual stub allows connection events to be detected and handled.
+When paired to another service, JDServices create a Virtual stub of their partner and can observe standard packets emitted by them. Services should guarantee that when paired, only their partner can access and configure them. The Virtual stub allows connection events to be detected and handled.
 
-In the diagram, it should also be noted that the Paired driver is a Virtual stub with its own address. All API calls via the virtual stub are sent using the VirtualStubs *own address*; the PairedHost receives
+In the diagram, it should also be noted that the Paired service is a Virtual stub with its own address. All API calls via the virtual stub are sent using the VirtualStubs *own address*; the PairedHost receives
 *packets from its partner* and can act accordingly.
 
 ### Broadcast Mode
 
-![image of drivers in a broadcast mode](images/broadcast.svg)
+![image of services in a broadcast mode](images/broadcast.svg)
 
-In this example, three drivers are running the MessageBus driver in Broadcast mode. A message bus shares primitive event information via a shared bus, in this case, JACDAC. Each driver is enumerated on the bus allowing the source of an event to be determined by the MessageBus driver if required.
+In this example, three services are running the MessageBus service in Broadcast mode. A message bus shares primitive event information via a shared bus, in this case, JACDAC. Each service is enumerated on the bus allowing the source of an event to be determined by the MessageBus service if required.
 
 The key difference in this mode is how packets are routed: *packets are matched on their class, rather than their address*. Broadcast mode can be combined with paired or virtual modes previously mentioned.
+
+## JACDAC Packets
+
+JACDAC packets were discussed briefly in the physical layer section. A JACDAC packet contains the following fields:
+
+| Field Size (bits) | Name            | Description                                                        |
+| ----------------- | --------------- | ------------------------------------------------------------------ |
+| 12                | CRC             | A 12-bit cyclic redundancy check used for packet validation.                           |
+| 4                 | service\_number | A number that identifies a service on a device.                    |
+| 8                 | device\_address | A number that identifies a device on the bus.                      |
+| 7                 | size            | The size of the data field 0-127.                                  |
+| 1                 | version         | A single bit that indicates the JACDAC version.                    |
+| 8 \* size         | data            | An array of bytes, whose size is dictated by the size field above. |
+
+### CRC
+
+The CRC field is 12 bits and is calculated using the polynomial `0xF13`. When calculating the CRC for packet, the serial number of the destination device.
+
+### Service Number
+
+### Device Address
+
+### Size
+
+### Version
+
 
 # Glossary
 
@@ -326,25 +335,25 @@ The key difference in this mode is how packets are routed: *packets are matched 
 
 ## Service Terminology
 
-  - Service (previously driver) - An interface to the JACDAC bus that
+  - Service (previously service) - An interface to the JACDAC bus that
     provisions a resource for a user.
   - Service State (previous device) - Maintains the state of a service
     at runtime.
-  - Service Class (previously driver class) - provides typing for a
+  - Service Class (previously service class) - provides typing for a
     service i.e. an accelerometer
   - Host Service - Hosts a resource for others to use on the bus. This
     type of service is enumerated on the bus in control packets.
   - Client Service - Uses a resource provided by a host on the bus. This
     type of service is not enumerated on the bus.
-  - Host Broadcast Service (previously broadcast driver) - Packets are
+  - Host Broadcast Service (previously broadcast service) - Packets are
     received based on class in addition to receiving packets directly
     using address and service number.
-  - Client Broadcast Service (Previously SnifferDriver) - Packets are
+  - Client Broadcast Service (Previously SnifferService) - Packets are
     received based on class and cannot be received directly as the
     service is not enumerated in control packets. This can be thought of
     as “wireshark” for a specific service class.
   - Control Service - Handles the routing of packets to the appropriate
-    drivers and the mounting / unmounting of devices. The control
+    services and the mounting / unmounting of devices. The control
     service is not enumerated on the bus and is addressed using the
     special broadcast session identifier “0”.
   - Control Packet - A control packet enumerates a device on the bus and
@@ -360,10 +369,10 @@ The key difference in this mode is how packets are routed: *packets are matched 
 Microcontrollers (MCUs) are traditionally used to monitor and actuate our environments (the Internet of Things), to prototype new products for consumers, and to enhance the creations of hobbyist-makers. However, more recently MCUs are being used to educate children on the fundamentals of computer science, helping them to understand the increasingly technologically dense world around them.
 
 What is striking about the previous statement is the revelation that MCU programming has transformed from a *highly specialised domain*
-(requiring the knowledge of low-level programming languages and the installation of complex toolchains) to a *more approachable, accessible domain*––children can now write and compile complete programs directly in a web browser using simpler higher-level programming languages. Even more striking is the *power of* these higher level languages: one can write complete I2C or SPI drivers without learning any C++.
+(requiring the knowledge of low-level programming languages and the installation of complex toolchains) to a *more approachable, accessible domain*––children can now write and compile complete programs directly in a web browser using simpler higher-level programming languages. Even more striking is the *power of* these higher level languages: one can write complete I2C or SPI services without learning any C++.
 
-Of course, children are not writing SPI or I2C drivers in these higher level languages, but rather *businesses looking to create accessories*
-featuring peripherals that enhance the base offerings of the educationally focussed MCU boards they use. Businesses use these higher level languages because they are simpler than C or C++, and driver code is portable to any other MCU in the language ecosystem.
+Of course, children are not writing SPI or I2C services in these higher level languages, but rather *businesses looking to create accessories*
+featuring peripherals that enhance the base offerings of the educationally focussed MCU boards they use. Businesses use these higher level languages because they are simpler than C or C++, and service code is portable to any other MCU in the language ecosystem.
 
 I2C and SPI are widely used for communicating with peripherals and for good reason: these protocols are efficient, fast, and well-defined. However, whilst these protocols are great for peripherals mounted on the
 *same* circuit board, they are hard for novice users to use with
@@ -373,10 +382,10 @@ Various educational MCU-boards have devised solutions for this problem:
 the Arduino ecosystem uses “shields”, a set of stackable peripheral boards that can only be plugged one-way to reach the main MCU. Also used by Arduino are grove connectors, a simple wire based ecosystem that allows the one-way connection of peripherals using a rugged connector. Other devices create custom connectors: the micro:bit features an edge connector for GPIO that allows easier, direct integration with accessories. Each of these approaches has a drawback: Arduino shields cannot be mounted anywhere other than directly onto the main board, grove connectors still require learning and expertise to connect things together, and the micro:bit’s edge connector only allows a limited number of accessories to be connected at a time; all approaches increase the overall cost of accessories.
 
 As well as requiring an understanding of basic electronics, the programming interface provided by I2C and SPI is conceptually low-level:
-it uses addresses and registers to communicate with peripherals. Each I2C or SPI component has its own register layout that is chip specific––each different model of accelerometer will have a different register map. Unfortunately, this means that whilst driver code can be ported to any MCU in the language ecosystem, the addresses and registers used by driver code are specific to each peripheral. For I2C the situation gets more problematic as each model of a peripheral is assigned a device address which is peripheral unique, but not chip unique, so if two of the same model of peripheral are connected to the bus, addressing collisions occur.
+it uses addresses and registers to communicate with peripherals. Each I2C or SPI component has its own register layout that is chip specific––each different model of accelerometer will have a different register map. Unfortunately, this means that whilst service code can be ported to any MCU in the language ecosystem, the addresses and registers used by service code are specific to each peripheral. For I2C the situation gets more problematic as each model of a peripheral is assigned a device address which is peripheral unique, but not chip unique, so if two of the same model of peripheral are connected to the bus, addressing collisions occur.
 
 However, the greatest problem with I2C or SPI is the communication paradigm: Host / Peripheral (used in place of outdated Master / Slave terminology). This paradigm dictates that a single device orchestrates the operation of all devices on the bus, manually configuring, writing, and reading their memory. This scenario caters well for when there is only one Host device on the bus, but what if you want two Host devices to communicate with each other? Or you want to connect two devices with the exact the same peripherals by joining their buses? Or perhaps you want two Hosts to share the same peripheral? The only remaining way to realise these scenarios is to add a network interface, or define a custom serial protocol.
 
 For businesses, the choice of communication protocol for external peripherals seems a simple, harmless decision, however this choice has real-world impacts on user experience. Outside of the domain of education, these issues also impact hobbiests as they wire complex animatronics with many sensors, and professional engineers as they prototype new products with various permutations of hardware.
 
-We present JACDAC (Joint Asynchronous Communications, Device Agnostic Control): a single wire broadcast protocol for the plug and play of accessories for microcontrollers. JACDAC requires no additional hardware to operate and abstracts accessories as a set of interfaces rather than hardware registers so that driver code can be shared across different implementations. It uses dynamic addressing so that multiple of the same accessory can be connected simultaneously and it offers three different communication abstractions to cater for an ever-diverse set of use scenarios for accessories.
+We present JACDAC (Joint Asynchronous Communications, Device Agnostic Control): a single wire broadcast protocol for the plug and play of accessories for microcontrollers. JACDAC requires no additional hardware to operate and abstracts accessories as a set of interfaces rather than hardware registers so that service code can be shared across different implementations. It uses dynamic addressing so that multiple of the same accessory can be connected simultaneously and it offers three different communication abstractions to cater for an ever-diverse set of use scenarios for accessories.
