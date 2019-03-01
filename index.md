@@ -18,12 +18,13 @@ Please visit the [motivation](#Motivation) section to read about the motivating 
   - [Hardware Requirements](#hardware-requirements)
   - [JACDAC Packet Format](#jacdac-packet-format)
   - [Transmission & Reception](#transmission--reception)
-  - [Error Recovery & Bus Idle Detection](#error-recovery--bus-idle-detection)
   - [Protocol Timings](#protocol-timings)
+    - [Bus Idle Spacing](#bus-idle-spacing)
     - [InterLoData Spacing](#interlodata-spacing)
     - [Interbyte Spacing](#interbyte-spacing)
     - [Interframe Spacing](#interframe-spacing)
-  - [Bus Collisions](#bus-collisions)
+  - [Error Detection and Recovery](#error-detection-and-recovery)
+  - [Preventing Bus Collisions](#preventing-bus-collisions)
 - [Control Layer Specifications](#control-layer-specifications)
   - [Control Packets](#control-packets)
   - [Device Address Assignment](#device-address-assignment)
@@ -138,19 +139,17 @@ The process described is visualised in the image below: the bus is high for a pe
 
 [Back to top](#protocol-overview)
 
-## Error Recovery & Bus Idle Detection
+## Protocol Timings
 
-If a device chooses to ignore a packet or an error condition is detected when receiving a packet, a device needs to determine when the bus has entered an idle state.
-
-An idle bus is defined as no activity for 2 bytes at 125kbaud (160 microseconds).
-
-To detect this time period, a device must capture the time from when the bus last transitioned from lo to hi, resetting this time if the bus transitions again.
+This section describes protocol timeout, if any of the following timings are violated, devices must enter an error state and resume listening for frame once the bus idle period has been detected
 
 [Back to top](#protocol-overview)
 
-## Protocol Timings
+### Bus Idle Spacing
 
-This section describes various protocol timings, if any of the following timings are violated, devices must enter an error state.
+If a device chooses to ignore a packet or an error condition is detected when receiving a packet, a device needs to determine when the bus has entered an idle state.
+
+An idle bus is defined as no activity (line hi) for 2 bytes at 125kbaud (160 microseconds).
 
 [Back to top](#protocol-overview)
 
@@ -178,7 +177,19 @@ The minimum space between frames is two bytes at the minimum baud rate (125KBaud
 
 [Back to top](#protocol-overview)
 
-## Bus Collisions
+## Error Detection and Recovery
+
+If any of the [protocol timings](#protocol-timings) are violated a device must enter an error state and wait until the bus is idle for the bus idle period.
+
+To detect the idle period, a device must capture the time from when the bus last transitioned from lo to hi, resetting this time if the bus transitions again.
+
+A state diagram for error detection when receiving a packet is shown below:
+
+![Error state state diagram](images/error-state.svg)
+
+[Back to top](#protocol-overview)
+
+## Preventing Bus Collisions
 
 Bus arbitration is performed through pulsing the bus low for 10 bits at the desired baud rate. However, a device could disable GPIO interrupts and initiate the process of transmission by driving the bus low whilst another device is doing the same:
 
@@ -194,8 +205,6 @@ If the bus state is lo when performing this check, devices must enter an error s
 
 If two devices begin the lo pulse at exactly the same time, the UART module on the transmitting MCU will detect an error
 (most likely a framing error), and the received crc will be incorrect.
-
-**BUS NACK required? Transmitting device might not have UART hardware that can detect this...**
 
 <!-- ![diagram of bad bus collision](images/bus-collision-bad.svg) -->
 
