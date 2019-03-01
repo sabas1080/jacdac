@@ -11,8 +11,6 @@ JACDAC (Joint Asynchronous Communications; Device Agnostic Control) is a single 
 
 Please visit the [motivation](#Motivation) section to read about the motivating factors for JACDAC.
 
-<a name="test"></a>
-
 # Contents  <!-- omit in toc -->
 - [Protocol Overview](#protocol-overview)
   - [Features](#features)
