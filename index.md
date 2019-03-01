@@ -1,3 +1,38 @@
+- [What is JACDAC?](#what-is-jacdac)
+- [Protocol Overview](#protocol-overview)
+  - [Features](#features)
+- [Physical Layer Specifications](#physical-layer-specifications)
+  - [Hardware Requirements](#hardware-requirements)
+  - [JACDAC Packet Format](#jacdac-packet-format)
+  - [Transmission & Reception](#transmission--reception)
+  - [Error Recovery & Bus Idle Detection](#error-recovery--bus-idle-detection)
+  - [Protocol Timings](#protocol-timings)
+    - [InterLoData Spacing](#interlodata-spacing)
+    - [Interbyte Spacing](#interbyte-spacing)
+    - [Interframe Spacing](#interframe-spacing)
+  - [Bus Collisions](#bus-collisions)
+- [Control Layer Specifications](#control-layer-specifications)
+  - [Control Packets](#control-packets)
+  - [Device Address Assignment](#device-address-assignment)
+  - [Routing Packets](#routing-packets)
+    - [The Logic Service](#the-logic-service)
+- [Services](#services)
+  - [Service Paradigms](#service-paradigms)
+    - [Virtual Mode](#virtual-mode)
+    - [Paired Mode](#paired-mode)
+    - [Broadcast Mode](#broadcast-mode)
+  - [JACDAC Packets](#jacdac-packets)
+    - [CRC](#crc)
+    - [Service Number](#service-number)
+    - [Device Address](#device-address)
+    - [Size](#size)
+    - [Version](#version)
+- [Glossary](#glossary)
+  - [Physical Layer Terminology](#physical-layer-terminology)
+  - [Device Terminology](#device-terminology)
+  - [Service Terminology](#service-terminology)
+- [Motivation](#motivation)
+
 # What is JACDAC?
 
 JACDAC (Joint Asynchronous Communications; Device Agnostic Control) is a single wire protocol for the plug and play of sensors, actuators, and microcontrollers (MCUs) for use within the contexts of rapid prototyping, making, and computer science education. JACDAC operates in a bus topology and requires devices have a microcontroller with UART, Timer, and GPIO interrupt capabilities.
@@ -143,7 +178,7 @@ This section discusses the control layer and specifies: the purpose and implemen
 
 ## Control Packets
 
-Each device has a ControlService that sends a **ControlPacket** every 500 ms. A ControlPacket contains information about the device such as the unique device identifier, device address, and available HostServices. The prescence or absence of ControlPackets are what allows JACDAC to determine if a device has been connected or removed from the bus.
+Each device has a **ControlService** that sends a **ControlPacket** every 500 ms. A ControlPacket contains information about the device including: a unique device identifier, device address, and available HostServices for use by the bus. The prescence or absence of ControlPackets allow JACDAC devices to determine if a device has been connected or removed from the bus.
 
 A control packet has the following structure:
 
@@ -161,6 +196,8 @@ A control packet has the following structure:
 | 4                      	| service_status     	| The status of the service. Used to indicate runtime errors.                                            	|
 | 4                      	| advertisement_size 	| A field that indicates the whether advertisement data is present. A maximum of 15 bytes are available. 	|
 | 8 * advertisement_size 	| advertisement_data 	| Optional advertisement data indicating runtime properties of the service.                              	|
+
+**timings of control packet absence presence**
 
 ## Device Address Assignment
 
