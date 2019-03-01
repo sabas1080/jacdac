@@ -11,6 +11,8 @@ JACDAC (Joint Asynchronous Communications; Device Agnostic Control) is a single 
 
 Please visit the [motivation](#Motivation) section to read about the motivating factors for JACDAC.
 
+<a name="test"></a>
+
 # Contents  <!-- omit in toc -->
 - [Protocol Overview](#protocol-overview)
   - [Features](#features)
@@ -60,6 +62,8 @@ Each JACDAC device has a simple stack featuring: (1) a physical layer handling t
 
 ![picture of JACDAC devices in bus topology](images/bus.svg)
 
+[Back to top](#protocol-overview)
+
 ## Features
 
   - Reuse of existing hardware: most MCUs
@@ -69,6 +73,8 @@ Each JACDAC device has a simple stack featuring: (1) a physical layer handling t
   - Multi-baud support
   - Code Re-use and Extensibility
   - Sharing of peripherals
+
+[Back to top](#protocol-overview)
 
 # Physical Layer Specifications
 
@@ -83,6 +89,8 @@ To operate on the JACDAC bus, an MCU must be capable of:
   - A GPIO with PullUp capabilities and interrupts. It’s far easier if the pin used for UART tx/rx can also generate GPIO interrupts(especially in CODAL).
   - The ability to keep time (whether through instruction counting or a hardware timer).
   - The ability to generate random numbers (or at least seed a software random number generator).
+
+[Back to top](#protocol-overview)
 
 ## JACDAC Packet Format
 
@@ -104,6 +112,8 @@ The packet structure is divided into two parts:
 * *data*: the data field onwards.
 
 A frame refers to a packet that is sent on the bus and includes the bus arbitration process.
+
+[Back to top](#protocol-overview)
 
 ## Transmission & Reception
 
@@ -128,6 +138,8 @@ The process described is visualised in the image below: the bus is high for a pe
 
 ![picture of a low period followed by data](images/physical.svg)
 
+[Back to top](#protocol-overview)
+
 ## Error Recovery & Bus Idle Detection
 
 If a device chooses to ignore a packet or an error condition is detected when receiving a packet, a device needs to determine when the bus has entered an idle state.
@@ -136,9 +148,13 @@ An idle bus is defined as no activity for 2 bytes at 125kbaud (160 microseconds)
 
 To detect this time period, a device must capture the time from when the bus last transitioned from lo to hi, resetting this time if the bus transitions again.
 
+[Back to top](#protocol-overview)
+
 ## Protocol Timings
 
 This section describes various protocol timings, if any of the following timings are violated, devices must enter an error state.
+
+[Back to top](#protocol-overview)
 
 ### InterLoData Spacing
 
@@ -146,17 +162,23 @@ The minimum time before data can be sent after a lo pulse is 40 microseconds, an
 
 ![diagram of the maximum spacing between bytes](images/interlodata-spacing.svg)
 
+[Back to top](#protocol-overview)
+
 ### Interbyte Spacing
 
 The maximum permitted time between bytes is two bytes at the minimum baud rate (125KBaud). A transmitting device must never near the maximum interbyte spacing. All devices must enter an error state if a transmitting device exceeds this time.
 
 ![diagram of the maximum spacing between bytes](images/interbyte-spacing.svg)
 
+[Back to top](#protocol-overview)
+
 ### Interframe Spacing
 
 The minimum space between frames is two bytes at the minimum baud rate (125KBaud). JACDAC devices should capture the time after receiving the last byte of a packet and observe the minimum interframe spacing. To prevent transmission of a frame at the same time as another device, devices must implement a random backoff for transmission.
 
 ![diagram of the maximum spacing between frames](images/interframe-spacing.svg)
+
+[Back to top](#protocol-overview)
 
 ## Bus Collisions
 
@@ -178,6 +200,8 @@ If two devices begin the lo pulse at exactly the same time, the UART module on t
 **BUS NACK required? Transmitting device might not have UART hardware that can detect this...**
 
 <!-- ![diagram of bad bus collision](images/bus-collision-bad.svg) -->
+
+[Back to top](#protocol-overview)
 
 # Control Layer Specifications
 
@@ -205,6 +229,8 @@ One or more ServiceInformation structs are placed in the data field of a control
 | 4                      	| service_status     	| The status of the service. Used to indicate runtime errors.                                            	|
 | 4                      	| advertisement_size 	| A field that indicates the whether advertisement data is present. A maximum of 15 bytes are available. 	|
 | 8 * advertisement_size 	| advertisement_data 	| Optional advertisement data indicating runtime properties of the service.                              	|
+
+[Back to top](#protocol-overview)
 
 **timings of control packet absence presence**
 
