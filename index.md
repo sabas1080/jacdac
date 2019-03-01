@@ -1,5 +1,17 @@
+![logo](images/logo.png)
+<center>
+<b>J</b>oint <b>A</b>synchronous <b>C</b>ommunications; <b>D</b>evice <b>A</b>gnostic <b>C</b>ontrol.<br/><br/><i>A single wire broadcast protocol for the plug and play of accessories for microcontrollers.</i> <br/><br/><u>Authors:</u> <b>J. Devine</b>, <b>M. Moskal</b>, <b>P. Halleux</b>, <b>T. Ball</b>, <b>S. Hodges</b>, <b>J. Finney</b>, <b>T. Seyed</b><br/><br/>
+
+<div style=\"background-color: #efa6a6;color: black;border: 1px solid #fb7979;text-align: center;border-radius: 10px;\"><b>WARNING:</b> JACDAC is very much still under development and subject to change. If you would like to contribute features and ideas, please visit the github repository (linked below) and file an issue.</div>
+</center>
+
+# What is JACDAC? <!-- omit in toc -->
+
+JACDAC (Joint Asynchronous Communications; Device Agnostic Control) is a single wire protocol for the plug and play of sensors, actuators, and microcontrollers (MCUs) for use within the contexts of rapid prototyping, making, and computer science education. JACDAC operates in a bus topology and requires devices have a microcontroller with UART, Timer, and GPIO interrupt capabilities.
+
+Please visit the [motivation](#Motivation) section to read about the motivating factors for JACDAC.
+
 # Contents  <!-- omit in toc -->
-- [What is JACDAC?](#what-is-jacdac)
 - [Protocol Overview](#protocol-overview)
   - [Features](#features)
 - [Physical Layer Specifications](#physical-layer-specifications)
@@ -33,12 +45,6 @@
   - [Device Terminology](#device-terminology)
   - [Service Terminology](#service-terminology)
 - [Motivation](#motivation)
-
-# What is JACDAC?
-
-JACDAC (Joint Asynchronous Communications; Device Agnostic Control) is a single wire protocol for the plug and play of sensors, actuators, and microcontrollers (MCUs) for use within the contexts of rapid prototyping, making, and computer science education. JACDAC operates in a bus topology and requires devices have a microcontroller with UART, Timer, and GPIO interrupt capabilities.
-
-Please visit the [motivation](#Motivation) section to read about the motivating factors for JACDAC.
 
 # Protocol Overview
 
@@ -189,6 +195,8 @@ A control packet has the following structure:
 | 8                      	| device_address 	| The address allocated to the device that occupies the address field of a JACDAC packet             	|
 | 8                      	| device_flags   	| A field for the ControlService indicating the state of a device.                                   	|
 | N * ServiceInformation 	| data           	| The data field is filled with an array of HostServices operating on the device for use by the bus. 	|
+
+One or more ServiceInformation structs are placed in the data field of a control packet and have the following structure:
 
 | Field Size (bits)      	| Name               	| Description                                                                                            	|
 |------------------------	|--------------------	|--------------------------------------------------------------------------------------------------------	|
