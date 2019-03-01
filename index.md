@@ -100,8 +100,7 @@ The table below specifies the packet structure of JACDAC packets transmitted on 
 | 12                | CRC             | A 12-bit CRC used for packet validation.                           |
 | 4                 | service\_number | A number that identifies a service on a device.                    |
 | 8                 | device\_address | A number that identifies a device on the bus.                      |
-| 7                 | size            | The size of the data field 0-127.                                  |
-| 1                 | version         | A single bit that indicates the JACDAC version.                    |
+| 8                 | size            | The size of the data field. Values range from 0-254.|
 | 8 \* size         | data            | An array of bytes, whose size is dictated by the size field above. |
 
 The packet structure is divided into two parts:
@@ -216,7 +215,7 @@ This section discusses the control layer and specifies: the purpose and implemen
 
 ## Control Packets
 
-Each device must have a **ControlService**, or at least sends a **ControlPacket** every 500 ms. A ControlPacket contains information about the device including: a unique device identifier, device address, and available HostServices for use by the bus. The prescence or absence of ControlPackets allow JACDAC devices to determine if a device has been connected or removed from the bus.
+Each device must have a **Control Layer** responsible for sending a **ControlPacket** every 500 ms. A ControlPacket contains information about the device including: a unique device identifier, device address, and available HostServices for use by the bus. The prescence or absence of ControlPackets allow JACDAC devices to determine if a device has been connected or removed from the bus.
 
 A control packet has the following structure:
 
