@@ -13,7 +13,6 @@ Please visit the [motivation](#Motivation) section to read about the motivating 
 
 # Contents  <!-- omit in toc -->
 - [Protocol Overview](#protocol-overview)
-  - [Features](#features)
 - [Physical Layer Specifications](#physical-layer-specifications)
   - [Hardware Requirements](#hardware-requirements)
   - [JACDAC Packet Format](#jacdac-packet-format)
@@ -26,7 +25,7 @@ Please visit the [motivation](#Motivation) section to read about the motivating 
   - [Error Detection and Recovery](#error-detection-and-recovery)
   - [Preventing Bus Collisions](#preventing-bus-collisions)
 - [Control Layer](#control-layer)
-  - [Control Packet Structure](#control-packet-structure)
+  - [Control Packet Format](#control-packet-format)
     - [Extracting ServiceInformation](#extracting-serviceinformation)
   - [Device Address Allocation](#device-address-allocation)
   - [Device Address Collisions](#device-address-collisions)
@@ -66,7 +65,7 @@ Each JACDAC device has a simple stack featuring: (1) a physical layer handling t
 
 [Back to top](#protocol-overview)
 
-## Features
+<!-- ## Features
 **TODO:**
   - Reuse of existing hardware: most MCUs
   - One wire
@@ -76,7 +75,7 @@ Each JACDAC device has a simple stack featuring: (1) a physical layer handling t
   - Code Re-use and Extensibility
   - Sharing of peripherals
 
-[Back to top](#protocol-overview)
+[Back to top](#protocol-overview) -->
 
 # Physical Layer Specifications
 
@@ -226,7 +225,7 @@ The address zero must never be used as the `device_address` by any device, and s
 
 <!-- reducing the overhead of individual JACDAC packets. -->
 
-## Control Packet Structure
+## Control Packet Format
 
 A ControlPacket has multiple purposes:
 
@@ -296,6 +295,8 @@ On the occurrence of an address collision, the device that detected the collidin
 Less capable MCUs that are unable to receive ControlPackets at higher baud rates (and thus won't detect an address collision) will remain on their addresses, whilst more capable MCUs will be forced to re-enumerate on the bus.
 
 ## Routing Packets
+
+After a device has enumerated on the bus, it may receive a JACDAC packet that requires routing to a service.
 
 A JACDAC packet contains a `device_address` and `service_number` field, which when combined identify a service running on a device. ControlPackets contain the necessary metadata to map a JACDAC packet to a corresponding device and service. If a JACDAC device requires a packet to be routed to a service it must maintain the relevant state contained in a control packet.
 
