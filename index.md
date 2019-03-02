@@ -283,7 +283,7 @@ The data field of a ControlPacket should be parsed as follows:
 
 ## Device Address Allocation
 
-When a device is first connected to the bus, it must obtain an address to use using ControlPackets. The process to obtain an address is known as **enumeration** and a device is said to be **enumerated** when it has a confirmed address. As in normal operation, devices must emit ControlPackets every 500 ms during enumeration. Other devices can only use services that are offered by a device once it is enumerated.
+When a device is first connected to the bus, it must obtain an address to use. The process to obtain an address is known as **enumeration** and a device is said to be **enumerated** when it has a confirmed address. Enumeration uses ControlPackets to obtain an address, and as in normal operation devices must emit ControlPackets every 500 ms. Other devices must only use services that are offered by a device once it is enumerated.
 
 When enumerating, devices must propose an address to use by setting the `device_address` and the `PROPOSAL` flag in its ControlPackets. If an enumerated device on the bus is already using the proposed address, the enumerated device must return the same ControlPacket with the `REJECT` flag set. If a proposing device receives the previously sent ControlPacket with the `REJECT` flag set, it must pick a new address and begin the proposal phase again. Similarly, if the proposing device receives a ControlPacket from another device using the proposed address, it must pick a new address and begin the proposal phase again (this may be the case if the proposing device communicates at an incompatible baud rate for another MCU).
 
