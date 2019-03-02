@@ -31,7 +31,6 @@ Please visit the [motivation](#Motivation) section to read about the motivating 
   - [Device Address Allocation](#device-address-allocation)
   - [Device Address Collisions](#device-address-collisions)
   - [Routing Packets](#routing-packets)
-    - [The Logic Service](#the-logic-service)
   - [When is enumeration required?](#when-is-enumeration-required)
   - [Control Layer Timings](#control-layer-timings)
 - [Services](#services)
@@ -232,7 +231,7 @@ The address zero must never be used as the `device_address` by any device, and s
 A ControlPacket has multiple purposes:
 
   1. To facilitate the allocation of device addresses on the bus.
-  2. To provide addressing information and meta data to devices on the bus for the routing of packets to services.
+  2. To reduce the overhead of standard JACDAC packets by providing meta data and addressing information for the routing of packets to services.
   3. To allow JACDAC devices to determine if a device has been connected or removed from the bus.
 
 It has the following structure:
@@ -263,21 +262,20 @@ The data field of a ControlPacket contains one or more ServiceInformation struct
 | 4                      	| advertisement_size 	| A field that indicates the whether advertisement data is present. A maximum of 15 bytes are available. 	|
 | 8 * advertisement_size 	| advertisement_data 	| Optional advertisement data indicating runtime properties of the service.                              	|
 
-Explain `service_number`
-
 ### Extracting ServiceInformation
 
 The data field of a ControlPacket should be parsed as follows:
 
   1) Inspect the size of the JACDAC Packet, and subtract the size of a ControlPacket header (10 bytes), the remainder will be the size of the data field called `data_field_size`. Create a variable called `offset` set to zero
+  2)  Is `offset` == `data_field_size`? If yes go to 4.
 
-  2) Iterate over the `ControlPacket->data` field:
+  3) Iterate over the `ControlPacket->data` field:
       - Cast the `ControlPacket->data + offset` to a `ServiceInformation` struct.
       - Determine if the `ServiceInformation` matches services running on the device.
       - Read the value of the `advertisement_size` field and extract advertisement data (if required).
-      - Add `advertisement_size` to `offset`
-      - Is `offset` >= `advertisement_size`? If no go to 2, else go to 3.
-  3) Finished
+      - Add `advertisement_size` to `offset`.
+      - Is `offset` >= `advertisement_size`? If no go to 2.
+  4) Finished
 
 [Back to top](#protocol-overview)
 
@@ -299,39 +297,47 @@ Less capable MCUs that are unable to receive ControlPackets at higher baud rates
 
 ## Routing Packets
 
-With the limited information in the packet above, how do packets reach their destination?
+A JACDAC packet contains a `device_address` and `service_number` field, which when combined identify a service running on a device. ControlPackets contain the necessary metadata to map a JACDAC packet to a corresponding device and service. If a JACDAC device requires a packet to be routed to a service it must maintain the relevant state contained in a control packet.
 
-So to not to fill all packets with unnecessary metadata, JACDAC devices broadcast service information every 500 milliseconds. All devices receive this information providing a mapping from a small 8-bit address to a fully enumerated service. Conveniently, this also allows the detection of when services are connected or disconnected from the bus.
+The `device_address` can be directly obtained from the `device_address` field of a ControlPacket. However, the `service_number` must be calculated by determining the position of the relevant ServiceInformation in the array contained in the data payload of a control packet:
 
-Service information is shared using a special packet type called a
-`ControlPacket`, which is embedded inside a standard JACDAC packet. A
-`ControlPacket` contains: a *packet\_type*, used to differentiate between types of control packet; an *address*, which should be the same address that is used in a standard packet; any *flags* specified by the service (the upper eight bits of which are reserved for the logic layer);
-a *service\_class* used to indicate the type of service it is (i.e. a Joystick); a *serial\_number* that uniquely identifies a service; and finally any additional payload information specified by the service.
+```
+ControlPacket:
+  device_address: 3
+  unique_device_id: 1235464738
+  flags: 0
+  data:
+    Service:
+      service_class: Button
+      flags: 0
+      status: 0
+      advertisement_size: 0
+    Service:
+      service_class: Accelerometer
+      flags: 0
+      status: 0
+      advertisement_size: 0
+    Service:
+      service_class: Servo
+      flags: 0
+      status: 0
+      advertisement_size: 0
+```
+A JACDAC packet addressed to the Accelerometer service using the ControlPacket above would look as follows:
 
-``` cpp struct ControlPacket
-{
-    uint8_t  packet_type;
-    uint8_t  address;
-    uint16_t flags;
-    uint32_t service_class;
-    uint32_t serial_number;
-    uint8_t  data[20];
-};
+```
+JACDAC Packet:
+  crc: XXXX
+  service_number: 1
+  address: 3
+  size: 6
+  data:
+    x: 999
+    y: 20
+    z: 500
 ```
 
-Standard and `ControlPackets` form the basis of the JACDAC protocol.
-
-### The Logic Service
-
-The logic service is responsible for managing address allocation and conflicts, and for signalling that devices have been connected or removed from the bus. On *all* JACDAC devices, the logic service resides on address zero.
-
-The logic service only receives `ControlPackets`; other services receive `ControlPackets` indirectly after the packet is processed by the logic service. It then follows that all `ControlPackets` have the address zero, so to address *all* logic services connected to the bus.
-
-Addresses are allocated by the logic service and are initially computed by avoiding addresses already allocated on the bus. There is a 1 second (2 control packets) grace period where a service control packet flags itself as uncertain. If during this period an address is contended, the uncertain service must change it’s address.
-
-It is likely that two separate buses may be joined by a user. When this happens, addresses are resolved simply by a first-come-first-serve policy: the first device to transmit a `ControlPacket` with an address absolutely owns that address. Any device that exists on the joined bus with the same address must respect this and change address accordingly.
-
-Connecting a new service is handled simply: the first control packet after the address allocation period is deemed “connected”. A disconnected service is determined by the absence of two consecutive control packets (a period of 1 second).
+By maintaining a small amount of state, minimal metadata is placed in a JACDAC packet allowing more space for service data.
 
 ## When is enumeration required?
 
