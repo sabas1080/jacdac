@@ -18,18 +18,22 @@ Please visit the [motivation](#Motivation) section to read about the motivating 
   - [Hardware Requirements](#hardware-requirements)
   - [JACDAC Packet Format](#jacdac-packet-format)
   - [Transmission & Reception](#transmission--reception)
-  - [Protocol Timings](#protocol-timings)
+  - [Physical Layer Timings](#physical-layer-timings)
     - [Bus Idle Spacing](#bus-idle-spacing)
     - [InterLoData Spacing](#interlodata-spacing)
     - [Interbyte Spacing](#interbyte-spacing)
     - [Interframe Spacing](#interframe-spacing)
   - [Error Detection and Recovery](#error-detection-and-recovery)
   - [Preventing Bus Collisions](#preventing-bus-collisions)
-- [Control Layer Specifications](#control-layer-specifications)
-  - [Control Packets](#control-packets)
-  - [Device Address Assignment](#device-address-assignment)
+- [Control Layer](#control-layer)
+  - [Control Packet Structure](#control-packet-structure)
+    - [Extracting ServiceInformation](#extracting-serviceinformation)
+  - [Device Address Allocation](#device-address-allocation)
+  - [Device Address Collisions](#device-address-collisions)
   - [Routing Packets](#routing-packets)
     - [The Logic Service](#the-logic-service)
+  - [When is enumeration required?](#when-is-enumeration-required)
+  - [Control Layer Timings](#control-layer-timings)
 - [Services](#services)
   - [Service Paradigms](#service-paradigms)
     - [Virtual Mode](#virtual-mode)
@@ -100,7 +104,7 @@ The table below specifies the packet structure of JACDAC packets transmitted on 
 | 12                | CRC             | A 12-bit CRC used for packet validation.                           |
 | 4                 | service\_number | A number that identifies a service on a device.                    |
 | 8                 | device\_address | A number that identifies a device on the bus.                      |
-| 8                 | size            | The size of the data field. Values range from 0-254.|
+| 8                 | size            | The size of the data field. Values range from 0-255.|
 | 8 \* size         | data            | An array of bytes, whose size is dictated by the size field above. |
 
 The packet structure is divided into two parts:
@@ -134,13 +138,15 @@ It should be noted that despite supporting lower baud rates, developers must ach
 
 The process described is visualised in the image below: the bus is high for a period of time, driven low for 10 microseconds (10 bits at 1Mbaud), data following 40 microseconds later.
 
+**What about when a 125kbaud device talks to the bus!!?**
+
 ![picture of a low period followed by data](images/physical.svg)
 
 [Back to top](#protocol-overview)
 
-## Protocol Timings
+## Physical Layer Timings
 
-This section describes protocol timeout, if any of the following timings are violated, devices must enter an error state and resume listening for frame once the bus idle period has been detected
+This section specifies expected and maximum timings at the physical layer. If any of the following timings are violated, devices must enter an error state and resume listening for frames once the bus idle period has been detected
 
 [Back to top](#protocol-overview)
 
@@ -209,15 +215,27 @@ If two devices begin the lo pulse at exactly the same time, the UART module on t
 
 [Back to top](#protocol-overview)
 
-# Control Layer Specifications
+# Control Layer
 
 This section discusses the control layer and specifies: the purpose and implementation Control Packets, device address assignment, and the routing of packets to Services.
 
-## Control Packets
+Each device must have a **Control Layer** responsible for sending a **ControlPacket** every 500 ms. A ControlPacket contains information about a device including: a unique device identifier (udid), device address, and available HostServices for use by the bus.
 
-Each device must have a **Control Layer** responsible for sending a **ControlPacket** every 500 ms. A ControlPacket contains information about the device including: a unique device identifier, device address, and available HostServices for use by the bus. The prescence or absence of ControlPackets allow JACDAC devices to determine if a device has been connected or removed from the bus.
+ControlPackets are embedded in the content of a standard JACDAC packet which has the `device_address` and `service_number` fields set to zero.
 
-A control packet has the following structure:
+The address zero must never be used as the `device_address` by any device, and should be thought of as a reserved broadcast address for Control operations.
+
+<!-- reducing the overhead of individual JACDAC packets. -->
+
+## Control Packet Structure
+
+A ControlPacket has multiple purposes:
+
+  1. To facilitate the allocation of device addresses on the bus.
+  2. To provide addressing information and meta data to devices on the bus for the routing of packets to services.
+  3. To allow JACDAC devices to determine if a device has been connected or removed from the bus.
+
+It has the following structure:
 
 | Field Size (bits)      	| Name           	| Description                                                                                        	|
 |------------------------	|----------------	|----------------------------------------------------------------------------------------------------	|
@@ -226,7 +244,16 @@ A control packet has the following structure:
 | 8                      	| device_flags   	| A field for the ControlService indicating the state of a device.                                   	|
 | N * ServiceInformation 	| data           	| The data field is filled with an array of HostServices operating on the device for use by the bus. 	|
 
-One or more ServiceInformation structs are placed in the data field of a control packet and have the following structure:
+The possible values of the `device_flags` field values are defined as follows:
+
+| Bit Mask (hex)     	| Name           	| Description                                                                                        	|
+|------------------------	|----------------	|----------------------------------------------------------------------------------------------------	|
+| 0x0fasd                    	| REJECT           	| The unique device identifier (udid) for the device.                                                	|
+| 0x0fasd                	| PROPOSAL 	| The address allocated to the device that occupies the address field of a JACDAC packet             	|
+| 8                      	| device_flags   	| A field for the ControlService indicating the state of a device.                                   	|
+| N * ServiceInformation 	| data           	| The data field is filled with an array of HostServices operating on the device for use by the bus. 	|
+
+The data field of a ControlPacket contains one or more ServiceInformation structs which have the following structure:
 
 | Field Size (bits)      	| Name               	| Description                                                                                            	|
 |------------------------	|--------------------	|--------------------------------------------------------------------------------------------------------	|
@@ -236,11 +263,39 @@ One or more ServiceInformation structs are placed in the data field of a control
 | 4                      	| advertisement_size 	| A field that indicates the whether advertisement data is present. A maximum of 15 bytes are available. 	|
 | 8 * advertisement_size 	| advertisement_data 	| Optional advertisement data indicating runtime properties of the service.                              	|
 
+Explain `service_number`
+
+### Extracting ServiceInformation
+
+The data field of a ControlPacket should be parsed as follows:
+
+  1) Inspect the size of the JACDAC Packet, and subtract the size of a ControlPacket header (10 bytes), the remainder will be the size of the data field called `data_field_size`. Create a variable called `offset` set to zero
+
+  2) Iterate over the `ControlPacket->data` field:
+      - Cast the `ControlPacket->data + offset` to a `ServiceInformation` struct.
+      - Determine if the `ServiceInformation` matches services running on the device.
+      - Read the value of the `advertisement_size` field and extract advertisement data (if required).
+      - Add `advertisement_size` to `offset`
+      - Is `offset` >= `advertisement_size`? If no go to 2, else go to 3.
+  3) Finished
+
 [Back to top](#protocol-overview)
 
-**timings of control packet absence presence**
+## Device Address Allocation
 
-## Device Address Assignment
+When a device is first connected to the bus, it must obtain an address to use using ControlPackets. The process to obtain an address is known as **enumeration** and a device is said to be **enumerated** when it has a confirmed address. As in normal operation, devices must emit ControlPackets every 500 ms during enumeration. Other devices can only use services that are offered by a device once it is enumerated.
+
+When enumerating, devices must propose an address to use by setting the `device_address` and the `PROPOSAL` flag in its ControlPackets. If an enumerated device on the bus is already using the proposed address, the enumerated device must return the same ControlPacket with the `REJECT` flag set. If a proposing device receives the previously sent ControlPacket with the `REJECT` flag set, it must pick a new address and begin the proposal phase again. Similarly, if the proposing device receives a ControlPacket from another device using the proposed address, it must pick a new address and begin the proposal phase again (this may be the case if the proposing device communicates at an incompatible baud rate for another MCU).
+
+After two ControlPackets without rejection, a proposing device is considered bound to that address. A bound address is indicated by the absence of the `PROPOSAL` flag.
+
+## Device Address Collisions
+
+Address collisions are identified by a device receiving a ControlPacket containing its `device_address` and a different `udid`. It is likely that there will be address collisions if two large, established buses are joined together.
+
+On the occurrence of an address collision, the device that detected the colliding ControlPacket must begin the enumeration process again to establish a new address. In other words, the first device to communicate a ControlPacket when two buses are joined remains bound to that address.
+
+Less capable MCUs that are unable to receive ControlPackets at higher baud rates (and thus won't detect an address collision) will remain on their addresses, whilst more capable MCUs will be forced to re-enumerate on the bus.
 
 ## Routing Packets
 
@@ -277,6 +332,14 @@ Addresses are allocated by the logic service and are initially computed by avoid
 It is likely that two separate buses may be joined by a user. When this happens, addresses are resolved simply by a first-come-first-serve policy: the first device to transmit a `ControlPacket` with an address absolutely owns that address. Any device that exists on the joined bus with the same address must respect this and change address accordingly.
 
 Connecting a new service is handled simply: the first control packet after the address allocation period is deemed “connected”. A disconnected service is determined by the absence of two consecutive control packets (a period of 1 second).
+
+## When is enumeration required?
+
+## Control Layer Timings
+
+Mounting times...?
+
+Devices must consider a device removed from the bus if no ControlPacket is seen for **1 second**.
 
 # Services
 
