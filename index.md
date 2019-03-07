@@ -29,20 +29,17 @@ Please visit the [motivation](#Motivation) section to read about the motivating 
     - [Extracting ServiceInformation](#extracting-serviceinformation)
   - [Device Address Allocation](#device-address-allocation)
   - [Device Address Collisions](#device-address-collisions)
+    - [Device Removal](#device-removal)
   - [Routing Packets](#routing-packets)
+  - [Pairing Devices?](#pairing-devices)
   - [When is enumeration required?](#when-is-enumeration-required)
-  - [Control Layer Timings](#control-layer-timings)
 - [Services](#services)
-  - [Service Paradigms](#service-paradigms)
-    - [Virtual Mode](#virtual-mode)
-    - [Paired Mode](#paired-mode)
-    - [Broadcast Mode](#broadcast-mode)
-  - [JACDAC Packets](#jacdac-packets)
-    - [CRC](#crc)
-    - [Service Number](#service-number)
-    - [Device Address](#device-address)
-    - [Size](#size)
-    - [Version](#version)
+  - [Host](#host)
+  - [Client](#client)
+  - [Broadcast](#broadcast)
+  - [Pairing device](#pairing-device)
+  - [Service Status Codes](#service-status-codes)
+  - [Dynamic Service Addition](#dynamic-service-addition)
 - [Glossary](#glossary)
   - [Physical Layer Terminology](#physical-layer-terminology)
   - [Device Terminology](#device-terminology)
@@ -99,8 +96,8 @@ The table below specifies the packet structure of JACDAC packets transmitted on 
 
 | Field Size (bits) | Name            | Description                                                        |
 | ----------------- | --------------- | ------------------------------------------------------------------ |
-| 12                | CRC             | A 12-bit CRC used for packet validation.                           |
-| 4                 | service\_number | A number that identifies a service on a device.                    |
+| 12                | CRC             | The CRC field calculated using the polynomial `0xF13`. When calculating the CRC for a JACDAC packet, the unique device identifier of the destination device must be included. When computing the CRC for a ControlPacket, the crc must be calculated with no unique device identifier.                        |
+| 4                 | service\_number | A number that identifies a service on a device. Discussed further in the [Control Layer](#control-layer) section.                 |
 | 8                 | device\_address | A number that identifies a device on the bus.                      |
 | 8                 | size            | The size of the data field. Values range from 0-255.|
 | 8 \* size         | data            | An array of bytes, whose size is dictated by the size field above. |
@@ -282,7 +279,7 @@ The data field of a ControlPacket should be parsed as follows:
 
 When a device is first connected to the bus, it must obtain an address to use. The process to obtain an address is known as **enumeration** and a device is said to be **enumerated** when it has a confirmed address. Enumeration uses ControlPackets to obtain an address, and as in normal operation devices must emit ControlPackets every 500 ms. Other devices must only use services that are offered by a device once it is enumerated.
 
-When enumerating, devices must propose an address to use by setting the `device_address` and the `PROPOSAL` flag in its ControlPackets. If an enumerated device on the bus is already using the proposed address, the enumerated device must return the same ControlPacket with the `REJECT` flag set. If a proposing device receives the previously sent ControlPacket with the `REJECT` flag set, it must pick a new address and begin the proposal phase again. Similarly, if the proposing device receives a ControlPacket from another device using the proposed address, it must pick a new address and begin the proposal phase again (this may be the case if the proposing device communicates at an incompatible baud rate for another MCU).
+When enumerating, devices must propose an address to use by setting the `device_address` and the `PROPOSAL` flag in its ControlPackets. If an enumerated device on the bus is already using the proposed address, the enumerated device must return the same ControlPacket with the `REJECT` flag set. If a proposing device receives the previously sent ControlPacket with the `REJECT` flag set, it must pick a new address and begin the proposal phase again. Similarly, if the proposing device receives a ControlPacket from another device using the proposed address, it must pick a new address and begin the proposal phase again (this may be the case if the proposing device communicates at an incompatible baud rate for another MCU). If two devices propose to use the same address, the [address collision](#device-address-collisions) rules must be observed.
 
 After two ControlPackets without rejection, a proposing device is considered bound to that address. A bound address is indicated by the absence of the `PROPOSAL` flag.
 
@@ -294,9 +291,13 @@ On the occurrence of an address collision, the device that detected the collidin
 
 Less capable MCUs that are unable to receive ControlPackets at higher baud rates (and thus won't detect an address collision) will remain on their addresses, whilst more capable MCUs will be forced to re-enumerate on the bus.
 
+### Device Removal
+
+If a ControlPacket is not seen from a device for **1 second** (2 ControlPackets), the device is considered removed.
+
 ## Routing Packets
 
-After a device has enumerated on the bus, it may receive a JACDAC packet that requires routing to a service.
+After a device has enumerated on the bus, it may receive a JACDAC packet from another device that requires on-device routing to the intended service.
 
 A JACDAC packet contains a `device_address` and `service_number` field, which when combined identify a service running on a device. ControlPackets contain the necessary metadata to map a JACDAC packet to a corresponding device and service. If a JACDAC device requires a packet to be routed to a service it must maintain the relevant state contained in a control packet.
 
@@ -340,66 +341,46 @@ JACDAC Packet:
 
 By maintaining a small amount of state, minimal metadata is placed in a JACDAC packet allowing more space for service data.
 
+## Pairing Devices?
+
 ## When is enumeration required?
 
-## Control Layer Timings
-
-Mounting times...?
-
-Devices must consider a device removed from the bus if no ControlPacket is seen for **1 second**.
+Device enumeration is only required when a device is running a HostService for others on the bus. If a device seeks only to use a HostService via a ClientService, device enumeration is not required.
 
 # Services
 
-Services build on the logic layer and expose usable APIs to the application programmer. Every service has a class identifying the type of service and a unique serial number to identify the service––this is automatically performed by combining the device serial number and service class.
+**Services** are advertised by JACDAC devices on the bus and build on the Control Layer. They expose APIs for programmers to access, actuate, and network with other devices on the bus.
 
-At the software level, JACDAC services should subclass JDService:
+The ServiceInformation structure inside ControlPackets contain information about a Service, such as:
 
-``` cpp class JDService : public CodalComponent
-{
-    protected:
-    JDDevice device;
+* The service class – a 32-bit number that identifies a type of Service such as an accelerometer or a joystick.
+* Any service flags – Flags indicating the current state of the service.
+* The service status – Other devices/services can check this field to determine if a Service has a runtime error (See [Service Status Codes](#service-status-codes)).
+* Optional service advertisement data – Each service can place an optional application payload in ControlPackets for other services to consume.
 
-    ...
+At runtime, Services send JACDAC packets placing the `service_offset` and `device_address` into each packet.
 
-    public:
-    JDService(JDDevice d);
+There are four modes of operation for a service:
 
-    virtual int fillControlPacket(JDPkt* p);
+  1. **Host Mode** – Host mode should be used by services that offer a resource for other devices to use on the bus. In this mode services are enumerated on the bus via ControlPackets.
+  2. **Client Mode** – Client mode should be used when a device wants to use a resource offered by another device (a Service in Host mode). In this mode a service is not required to enumerate on the bus.
+  3. **Broadcast Mode** – Broadcast Host mode should be used by Services want to share or consume a resource but also want to collaborate between Services of the same **class** on the bus. Broadcast mode is combined with either Host or Client modes. Enumeration is required in Broadcast Host mode, but not in Broadcast Client mode.
 
-    virtual int handleControlPacket(JDPkt* p);
+The four modes above allow various communication paradigms to be achieved:
 
-    virtual int handlePairingPacket(JDPkt* p);
+  * Single Host, many Client – A single host can have multiple Clients, like a Server can have multiple clients in a traditional Server-Client architecture.
+  * Single Client, single Host – As in I2C, a Client paired to a Host allows singular control over another JACDAC devices' service.
+  * Many Host, Many Client – Combining Hosts and Clients in Broadcast mode enables multicast communications.
 
-    virtual int handlePacket(JDPkt* p);
-};
-```
+## Host
 
-The device member variable is accessed by the logic service to maintain the state of an operating service. The remaining member functions are invoked by the logic service: `fillControlPacket`, invoked when the logic service is queueing the services’ control packet, allows service specific information to be added; `handleControlPacket` is invoked when a matching control packet is received; `handlePairingPacket` is called when a pairing ControlPacket is received; and `handlePacket` is invoked whenever a packet is seen with the services address.
+![image of services in host mode](images/host.svg)
 
-``` cpp struct JDDevice
-{
-    uint8_t address;
-    uint8_t rolling_counter;
-    uint16_t flags;
-    uint32_t serial_number;
-    uint32_t service_class;
-};
-```
+## Client
 
-A JDDevice contains service state used in `ControlPackets`. The
-*rolling\_counter* field is used by the logic service to trigger various control packet events. The address of a service is set by the logic service and stored in the *address* field. Various constructors are available for this struct, please visit the API documentation.
+![image of services in client mode](images/client.svg)
 
-## Service Paradigms
-
-While modelling every service as a Host is one of the key design decisions of JACDAC, it would be naive to suggest that a broadcast communication paradigm is ideal in every scenario. However, use of a broadcast paradigm enables three communication abstractions:
-
-1.  **Virtual** –– Many Host, single peripheral. 2.  **Paired** –– Single Host, single peripheral. 3.  **Broadcast** –– Many Host, many peripheral.
-
-An attentive reader may realise that one communication paradigm is missing: Single Host, many peripheral; in JACDAC this is realised through many Paired connections.
-
-### Virtual Mode
-
-![image of services in a virtual mode](images/virtual.svg)
+What if host disappears?
 
 The diagram shows three devices two in virtual mode, with one device acting as the “host” of the PinService. The PinService allows remote control over the state of a pin.
 
@@ -407,18 +388,7 @@ Virtual services are stubs that perform operations on a remote host; they are un
 
 If a virtual service would like to use a specific service, an optional serial number can be provided––only the matched service will be mounted. Alternate methods of mounting virtual services should be handled in software by placing additional information in service control packets.
 
-### Paired Mode
-
-![image of services in a paired mode](images/paired.svg)
-
-In Paired mode, two services are notionally bonded to each other at the software level. In this example there are three services: A paired host, a paired virtual, and an uninitialised virtual service. It is important to highlight that although a host is present on the bus, only one virtual service is initialised as logic services external to the pairing ignore packets emitted from these services until they are unpaired––hence the virtual service is not initialised.
-
-When paired to another service, JDServices create a Virtual stub of their partner and can observe standard packets emitted by them. Services should guarantee that when paired, only their partner can access and configure them. The Virtual stub allows connection events to be detected and handled.
-
-In the diagram, it should also be noted that the Paired service is a Virtual stub with its own address. All API calls via the virtual stub are sent using the VirtualStubs *own address*; the PairedHost receives
-*packets from its partner* and can act accordingly.
-
-### Broadcast Mode
+## Broadcast
 
 ![image of services in a broadcast mode](images/broadcast.svg)
 
@@ -426,30 +396,21 @@ In this example, three services are running the MessageBus service in Broadcast 
 
 The key difference in this mode is how packets are routed: *packets are matched on their class, rather than their address*. Broadcast mode can be combined with paired or virtual modes previously mentioned.
 
-## JACDAC Packets
+## Pairing device
 
-JACDAC packets were discussed briefly in the physical layer section. A JACDAC packet contains the following fields:
+The three modes listed above, omission master/client etc.?
 
-| Field Size (bits) | Name            | Description                                                        |
-| ----------------- | --------------- | ------------------------------------------------------------------ |
-| 12                | CRC             | A 12-bit cyclic redundancy check used for packet validation.                           |
-| 4                 | service\_number | A number that identifies a service on a device.                    |
-| 8                 | device\_address | A number that identifies a device on the bus.                      |
-| 7                 | size            | The size of the data field 0-127.                                  |
-| 1                 | version         | A single bit that indicates the JACDAC version.                    |
-| 8 \* size         | data            | An array of bytes, whose size is dictated by the size field above. |
+Paired mode allows devices to have exclusive access to another device.
 
-### CRC
+In Paired mode, two services are notionally bonded to each other at the software level. In this example there are three services: A paired host, a paired virtual, and an uninitialised virtual service. It is important to highlight that although a host is present on the bus, only one virtual service is initialised as logic services external to the pairing ignore packets emitted from these services until they are unpaired––hence the virtual service is not initialised.
 
-The CRC field is 12 bits and is calculated using the polynomial `0xF13`. When calculating the CRC for packet, the serial number of the destination device.
+When paired to another service, JDServices create a Virtual stub of their partner and can observe standard packets emitted by them. Services should guarantee that when paired, only their partner can access and configure them. The Virtual stub allows connection events to be detected and handled.
 
-### Service Number
+In the diagram, it should also be noted that the Paired service is a Virtual stub with its own address. All API calls via the virtual stub are sent using the VirtualStubs *own address*; the PairedHost receives *packets from its partner* and can act accordingly.
 
-### Device Address
+## Service Status Codes
 
-### Size
-
-### Version
+## Dynamic Service Addition
 
 
 # Glossary
