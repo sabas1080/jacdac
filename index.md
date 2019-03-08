@@ -15,6 +15,7 @@ Please visit the [motivation](#Motivation) section to read about the motivating 
 - [Protocol Overview](#protocol-overview)
 - [Physical Layer Specifications](#physical-layer-specifications)
   - [Hardware Requirements](#hardware-requirements)
+  - [add how sensors hook up to mcu and are presented as services... (Hardware Organisation????)](#add-how-sensors-hook-up-to-mcu-and-are-presented-as-services-hardware-organisation)
   - [JACDAC Packet Format](#jacdac-packet-format)
   - [Transmission & Reception](#transmission--reception)
   - [Physical Layer Timings](#physical-layer-timings)
@@ -34,10 +35,13 @@ Please visit the [motivation](#Motivation) section to read about the motivating 
   - [Pairing Devices?](#pairing-devices)
   - [When is enumeration required?](#when-is-enumeration-required)
 - [Services](#services)
-  - [Host](#host)
-  - [Client](#client)
+  - [HostServices](#hostservices)
+  - [ClientServices](#clientservices)
   - [Broadcast](#broadcast)
-  - [Pairing device](#pairing-device)
+  - [Addressing](#addressing)
+    - [Host and Client Addressing](#host-and-client-addressing)
+    - [Broadcast Addressing](#broadcast-addressing)
+  - [Pairing Devices](#pairing-devices)
   - [Service Status Codes](#service-status-codes)
   - [Dynamic Service Addition](#dynamic-service-addition)
 - [Glossary](#glossary)
@@ -89,6 +93,8 @@ To operate on the JACDAC bus, an MCU must be capable of:
   - The ability to generate random numbers (or at least seed a software random number generator).
 
 [Back to top](#protocol-overview)
+
+## add how sensors hook up to mcu and are presented as services... (Hardware Organisation????)
 
 ## JACDAC Packet Format
 
@@ -360,43 +366,100 @@ The ServiceInformation structure inside ControlPackets contain information about
 
 At runtime, Services send JACDAC packets placing the `service_offset` and `device_address` into each packet.
 
-There are four modes of operation for a service:
+There are three modes of operation for a service:
 
   1. **Host Mode** – Host mode should be used by services that offer a resource for other devices to use on the bus. In this mode services are enumerated on the bus via ControlPackets.
   2. **Client Mode** – Client mode should be used when a device wants to use a resource offered by another device (a Service in Host mode). In this mode a service is not required to enumerate on the bus.
   3. **Broadcast Mode** – Broadcast Host mode should be used by Services want to share or consume a resource but also want to collaborate between Services of the same **class** on the bus. Broadcast mode is combined with either Host or Client modes. Enumeration is required in Broadcast Host mode, but not in Broadcast Client mode.
 
-The four modes above allow various communication paradigms to be achieved:
+The three modes above allow two communication paradigms to be achieved:
 
   * Single Host, many Client – A single host can have multiple Clients, like a Server can have multiple clients in a traditional Server-Client architecture.
-  * Single Client, single Host – As in I2C, a Client paired to a Host allows singular control over another JACDAC devices' service.
   * Many Host, Many Client – Combining Hosts and Clients in Broadcast mode enables multicast communications.
 
-## Host
+Single control over another device (as in I2C) will be covered [later in this document](#pairing-devices).
+
+## HostServices
 
 ![image of services in host mode](images/host.svg)
 
-## Client
+The diagram above shows an established JACDAC network with three devices connected to the JACDAC bus. Each device in the diagram is organised as specified in the `ControlPacket` struct: device information followed by one or more services. Each device has an address and is providing different HostServices on the bus.
+
+In this example there are no Clients for any of the services so the Control Layer will not perform any routing of packets, unless a service is directly addressed by combining the `device_address` and `service_number`.
+
+When a HostService receives a packet, it has no ability to determine the source address of the packet unless additional metadata is place inside the data field.
+
+Devices can enumerate up to 16 HostServices on the bus.
+
+## ClientServices
 
 ![image of services in client mode](images/client.svg)
 
-What if host disappears?
+The diagram above shows an established JACDAC network with three devices connected to the JACDAC bus. Only one device (20) is presenting a HostService to the bus, this device in the diagram is organised as specified in the `ControlPacket` struct: device information followed by one or more services.
 
-The diagram shows three devices two in virtual mode, with one device acting as the “host” of the PinService. The PinService allows remote control over the state of a pin.
+The two remaining devices (middle, right) are not enumerated on the bus, but are accessing the Pin HostService on device 20 using ClientServices. By inspecting the information provided in ControlPackets, the Control Layer on each device has routed the ControlPackets from the Pin HostService (20) to the Pin ClientServices. The Pin ClientServices have stored the routing information (`device_address`, `service_number`) of the Pin HostService (20), so that when a programmer uses the service in a program resulting packets will be addressed to the Pin HostService.
 
-Virtual services are stubs that perform operations on a remote host; they are uninitialised until a control packet matching the class is seen on the bus. They are then populated with the host services’ information after receiving a matching control packet. Virtual services emit no control packets as they are not hosting a resource. If a host disappears, virtual services are set to their uninitialised state.
+When a service has stored routing information to a service running on another device, we say that the Client has **bound** to the host. When a ClientService is bound, the Control Layer must maintain the state of the bound service by forwarding ServiceInformation from ControlPackets and detecting if the device operating the service has been removed from the bus. If the HostService used by a ClientService disappears from the bus, the Control Layer must detect the absence of a device and signal to any matching services that a device has disappeared. Matching services must then enter an uninitialised state and wait for the Control Layer to route the ControlPackets of another device that is providing a matching HostService on the bus.
 
-If a virtual service would like to use a specific service, an optional serial number can be provided––only the matched service will be mounted. Alternate methods of mounting virtual services should be handled in software by placing additional information in service control packets.
+When sending packet to a bound host, a ClientService must use the `device_address` and `service_number` of the bound host. In this sense, a ClientService can be thought of as a stub of a HostService.
 
 ## Broadcast
 
 ![image of services in a broadcast mode](images/broadcast.svg)
 
-In this example, three services are running the MessageBus service in Broadcast mode. A message bus shares primitive event information via a shared bus, in this case, JACDAC. Each service is enumerated on the bus allowing the source of an event to be determined by the MessageBus service if required.
+The diagram above shows an established JACDAC network with three devices connected to the JACDAC bus. Devices 20 and 50 are presenting HostServices to the bus and in the diagram are organised as specified in the `ControlPacket` struct: device information followed by one or more services. In this example three devices are running the MessageBus service and are sharing primitive event information with each other via the JACDAC bus.
 
-The key difference in this mode is how packets are routed: *packets are matched on their class, rather than their address*. Broadcast mode can be combined with paired or virtual modes previously mentioned.
+All devices are operating a Message Bus service in Broadcast mode. Broadcast mode allows Services to receive packets by `service_class` in addition to normal addressing (combining `device_address` and `service_number`). The Control Layer must route packets to services running in Broadcast mode by maintaining the state of other devices featuring Services with matching class numbers.
 
-## Pairing device
+Usually, when a Service is running in Host mode, no additional device state is maintained. However, when a Service is running in Broadcast Host mode the Control Layer must provide a mapping from a normal address (`device_address` and `service_number`) to a class, as packets contain no `service_class` metadata and services transmit packets using their own address. As a result, Broadcast services require more RAM to operate.
+
+In the example above, the Control Layer on device 50 is not maintaining the state of the device on the right as it is not enumerated, however, it is maintaining the state of device 20. Applying this logic to the Control Layer of device 20, we can deduce that it will maintain the state of device 50.
+
+The device on the right of the diagram is running the MessageBus service in Broadcast Client mode, is not enumerated, and is bound to the MessageBus service of device 20. In this case, the MessageBus service is already maintaining the state of device 20 and a mapping is not required. However, the Control Layer of this device must maintain the state of device 50 to route packets packets correctly.
+
+## Addressing
+
+This section formalises the addressing scheme for devices and services in Host, Client, and Broadcast modes.
+
+There are two modes for addressing:
+1. Normal mode – Where the `device_address` and `service_number` fields in a JACDAC packet are used to route a packet.
+2. Broadcast mode – Where the `service_class` is used to route packets. This mode operates in conjunction with normal mode.
+
+The colour of the arrows in the following diagrams indicates the addressing and service modes:
+
+* Purple arrows show a client service operating in normal addressing mode.
+* Red arrows show a host service operating in normal addressing mode.
+* Green arrows show a service operating in broadcast addressing mode.
+
+### Host and Client Addressing
+
+![](images/addressing-client-host-send.svg)
+
+The diagram above shows a Host Service sending a packet using its address. The packet is received by the ClientServices bound to device 20.
+
+![](images/addressing-client-client-send.svg)
+
+The diagram above shows a Client Service sending a packet using the `device_address` 20 and `service_number` of 0. The packet is received by the additional ClientService bound to device 20, and device 20 itself.
+
+![](images/addressing-client-alt-host-send.svg)
+
+The diagram above shows a Joystrick Host Service sending a packet using the `device_address` 198 and `service_number` of 0. The packet is received by all devices on the bus, but is not routed to any service (hence the arrows are omitted) because no Client or Broadcast services exist on any of the devices.
+
+### Broadcast Addressing
+
+![](images/addressing-broad-send.svg)
+
+The diagram above shows a Broadcast Host Service sending a packet using the `device_address` 20 and `service_number` of 0. The packet is received using broadcast addressing by device 50 and received using client addressing by the third device, which is bound to device 20.
+
+![](images/addressing-broad-broad-send.svg)
+
+The diagram above shows a Broadcast Host Service sending a packet using the `device_address` 50 and `service_number` of 0. The packet is received by device 20 and the un-enumerated third device using broadcast addressing.
+
+![](images/addressing-broad-client-send.svg)
+
+The diagram above shows a Broadcast Client Service sending a packet using the `device_address` 20 and `service_number` of 0. The packet is received by device 20 using Host addressing and by device 50 using broadcast addressing.
+
+## Pairing Devices
 
 The three modes listed above, omission master/client etc.?
 
@@ -457,10 +520,7 @@ In the diagram, it should also be noted that the Paired service is a Virtual stu
   - Host Broadcast Service (previously broadcast service) - Packets are
     received based on class in addition to receiving packets directly
     using address and service number.
-  - Client Broadcast Service (Previously SnifferService) - Packets are
-    received based on class and cannot be received directly as the
-    service is not enumerated in control packets. This can be thought of
-    as “wireshark” for a specific service class.
+  - Client Broadcast Service (Previously SnifferService) - Packets are received based on class and cannot be received directly as the service is not enumerated in control packets. This can be thought of as “wireshark” for a specific service class.
   - Control Service - Handles the routing of packets to the appropriate
     services and the mounting / unmounting of devices. The control
     service is not enumerated on the bus and is addressed using the
