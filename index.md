@@ -15,7 +15,7 @@ Please visit the [motivation](#Motivation) section to read about the motivating 
 - [Protocol Overview](#protocol-overview)
 - [Physical Layer Specifications](#physical-layer-specifications)
   - [Hardware Requirements](#hardware-requirements)
-  - [add how sensors hook up to mcu and are presented as services... (Hardware Organisation????)](#add-how-sensors-hook-up-to-mcu-and-are-presented-as-services-hardware-organisation)
+  - [Hardware Organisation](#hardware-organisation)
   - [JACDAC Packet Format](#jacdac-packet-format)
   - [Transmission & Reception](#transmission--reception)
   - [Physical Layer Timings](#physical-layer-timings)
@@ -32,7 +32,6 @@ Please visit the [motivation](#Motivation) section to read about the motivating 
   - [Device Address Collisions](#device-address-collisions)
     - [Device Removal](#device-removal)
   - [Routing Packets](#routing-packets)
-  - [Pairing Devices?](#pairing-devices)
   - [When is enumeration required?](#when-is-enumeration-required)
 - [Services](#services)
   - [HostServices](#hostservices)
@@ -41,9 +40,8 @@ Please visit the [motivation](#Motivation) section to read about the motivating 
   - [Addressing](#addressing)
     - [Host and Client Addressing](#host-and-client-addressing)
     - [Broadcast Addressing](#broadcast-addressing)
-  - [Pairing Devices](#pairing-devices)
-  - [Service Status Codes](#service-status-codes)
   - [Dynamic Service Addition](#dynamic-service-addition)
+  - [Service Status Codes](#service-status-codes)
 - [Glossary](#glossary)
   - [Physical Layer Terminology](#physical-layer-terminology)
   - [Device Terminology](#device-terminology)
@@ -94,7 +92,13 @@ To operate on the JACDAC bus, an MCU must be capable of:
 
 [Back to top](#protocol-overview)
 
-## add how sensors hook up to mcu and are presented as services... (Hardware Organisation????)
+## Hardware Organisation
+
+![](images/hardware-organisation.png)
+
+A JACDAC device should feature one JACDAC capable microcontroller that is connected to zero or more sensors over an onboard communication protocol such as I2C or SPI. The JACDAC microcontroller should also have the capability to connect to the JACDAC bus to communicate with other JACDAC devices.
+
+[Back to top](#protocol-overview)
 
 ## JACDAC Packet Format
 
@@ -138,8 +142,6 @@ Devices that communicate at baud rates faster than 125Kbaud must also be capable
 It should be noted that despite supporting lower baud rates, developers must achieve the maximum baud rate possible with their chosen MCU. This is for reasons of bus efficiency, as the presence of a large number of slower devices reduces the throughput of the bus.
 
 The process described is visualised in the image below: the bus is high for a period of time, driven low for 10 microseconds (10 bits at 1Mbaud), data following 40 microseconds later.
-
-**What about when a 125kbaud device talks to the bus!!?**
 
 ![picture of a low period followed by data](images/physical.svg)
 
@@ -289,6 +291,8 @@ When enumerating, devices must propose an address to use by setting the `device_
 
 After two ControlPackets without rejection, a proposing device is considered bound to that address. A bound address is indicated by the absence of the `PROPOSAL` flag.
 
+[Back to top](#protocol-overview)
+
 ## Device Address Collisions
 
 Address collisions are identified by a device receiving a ControlPacket containing its `device_address` and a different `udid`. It is likely that there will be address collisions if two large, established buses are joined together.
@@ -296,6 +300,8 @@ Address collisions are identified by a device receiving a ControlPacket containi
 On the occurrence of an address collision, the device that detected the colliding ControlPacket must begin the enumeration process again to establish a new address. In other words, the first device to communicate a ControlPacket when two buses are joined remains bound to that address.
 
 Less capable MCUs that are unable to receive ControlPackets at higher baud rates (and thus won't detect an address collision) will remain on their addresses, whilst more capable MCUs will be forced to re-enumerate on the bus.
+
+[Back to top](#protocol-overview)
 
 ### Device Removal
 
@@ -347,7 +353,9 @@ JACDAC Packet:
 
 By maintaining a small amount of state, minimal metadata is placed in a JACDAC packet allowing more space for service data.
 
-## Pairing Devices?
+[Back to top](#protocol-overview)
+
+<!-- ## Pairing Devices? -->
 
 ## When is enumeration required?
 
@@ -377,7 +385,9 @@ The three modes above allow two communication paradigms to be achieved:
   * Single Host, many Client – A single host can have multiple Clients, like a Server can have multiple clients in a traditional Server-Client architecture.
   * Many Host, Many Client – Combining Hosts and Clients in Broadcast mode enables multicast communications.
 
-Single control over another device (as in I2C) will be covered [later in this document](#pairing-devices).
+<!-- Single control over another device (as in I2C) will be covered [later in this document](#pairing-devices). -->
+
+[Back to top](#protocol-overview)
 
 ## HostServices
 
@@ -391,6 +401,8 @@ When a HostService receives a packet, it has no ability to determine the source 
 
 Devices can enumerate up to 16 HostServices on the bus.
 
+[Back to top](#protocol-overview)
+
 ## ClientServices
 
 ![image of services in client mode](images/client.svg)
@@ -402,6 +414,8 @@ The two remaining devices (middle, right) are not enumerated on the bus, but are
 When a service has stored routing information to a service running on another device, we say that the Client has **bound** to the host. When a ClientService is bound, the Control Layer must maintain the state of the bound service by forwarding ServiceInformation from ControlPackets and detecting if the device operating the service has been removed from the bus. If the HostService used by a ClientService disappears from the bus, the Control Layer must detect the absence of a device and signal to any matching services that a device has disappeared. Matching services must then enter an uninitialised state and wait for the Control Layer to route the ControlPackets of another device that is providing a matching HostService on the bus.
 
 When sending packet to a bound host, a ClientService must use the `device_address` and `service_number` of the bound host. In this sense, a ClientService can be thought of as a stub of a HostService.
+
+[Back to top](#protocol-overview)
 
 ## Broadcast
 
@@ -416,6 +430,8 @@ Usually, when a Service is running in Host mode, no additional device state is m
 In the example above, the Control Layer on device 50 is not maintaining the state of the device on the right as it is not enumerated, however, it is maintaining the state of device 20. Applying this logic to the Control Layer of device 20, we can deduce that it will maintain the state of device 50.
 
 The device on the right of the diagram is running the MessageBus service in Broadcast Client mode, is not enumerated, and is bound to the MessageBus service of device 20. In this case, the MessageBus service is already maintaining the state of device 20 and a mapping is not required. However, the Control Layer of this device must maintain the state of device 50 to route packets packets correctly.
+
+[Back to top](#protocol-overview)
 
 ## Addressing
 
@@ -459,7 +475,9 @@ The diagram above shows a Broadcast Host Service sending a packet using the `dev
 
 The diagram above shows a Broadcast Client Service sending a packet using the `device_address` 20 and `service_number` of 0. The packet is received by device 20 using Host addressing and by device 50 using broadcast addressing.
 
-## Pairing Devices
+[Back to top](#protocol-overview)
+
+<!-- ## Pairing Devices
 
 The three modes listed above, omission master/client etc.?
 
@@ -469,11 +487,13 @@ In Paired mode, two services are notionally bonded to each other at the software
 
 When paired to another service, JDServices create a Virtual stub of their partner and can observe standard packets emitted by them. Services should guarantee that when paired, only their partner can access and configure them. The Virtual stub allows connection events to be detected and handled.
 
-In the diagram, it should also be noted that the Paired service is a Virtual stub with its own address. All API calls via the virtual stub are sent using the VirtualStubs *own address*; the PairedHost receives *packets from its partner* and can act accordingly.
-
-## Service Status Codes
+In the diagram, it should also be noted that the Paired service is a Virtual stub with its own address. All API calls via the virtual stub are sent using the VirtualStubs *own address*; the PairedHost receives *packets from its partner* and can act accordingly. -->
 
 ## Dynamic Service Addition
+
+JACDAC does not support service addition or removal whilst a device is enumerated. If a service needs to be added or removed then the device must un-enumerate, add or remove the service and re-enumerate.
+
+## Service Status Codes
 
 
 # Glossary
