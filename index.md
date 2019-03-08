@@ -89,6 +89,8 @@ To operate on the JACDAC bus, an MCU must be capable of:
   - A GPIO with PullUp capabilities and interrupts. It’s far easier if the pin used for UART tx/rx can also generate GPIO interrupts(especially in CODAL).
   - The ability to keep time (whether through instruction counting or a hardware timer).
   - The ability to generate random numbers (or at least seed a software random number generator).
+  
+Please visit the [motivation](#motivation) section to read about the motivating factors for JACDAC.
 
 
 
