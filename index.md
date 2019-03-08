@@ -62,7 +62,7 @@ Each JACDAC device has a simple stack featuring: (1) a physical layer handling t
 
 ![picture of JACDAC devices in bus topology](images/bus.svg)
 
-[Back to top](#protocol-overview)
+
 
 <!-- ## Features
 **TODO:**
@@ -74,7 +74,7 @@ Each JACDAC device has a simple stack featuring: (1) a physical layer handling t
   - Code Re-use and Extensibility
   - Sharing of peripherals
 
-[Back to top](#protocol-overview) -->
+ -->
 
 # Physical Layer Specifications
 
@@ -90,7 +90,7 @@ To operate on the JACDAC bus, an MCU must be capable of:
   - The ability to keep time (whether through instruction counting or a hardware timer).
   - The ability to generate random numbers (or at least seed a software random number generator).
 
-[Back to top](#protocol-overview)
+
 
 ## Hardware Organisation
 
@@ -98,7 +98,7 @@ To operate on the JACDAC bus, an MCU must be capable of:
 
 A JACDAC device should feature one JACDAC capable microcontroller that is connected to zero or more sensors over an onboard communication protocol such as I2C or SPI. The JACDAC microcontroller should also have the capability to connect to the JACDAC bus to communicate with other JACDAC devices.
 
-[Back to top](#protocol-overview)
+
 
 ## JACDAC Packet Format
 
@@ -120,7 +120,7 @@ The packet structure is divided into two parts:
 
 A frame refers to a packet that is sent on the bus and includes the bus arbitration process.
 
-[Back to top](#protocol-overview)
+
 
 ## Transmission & Reception
 
@@ -145,13 +145,13 @@ The process described is visualised in the image below: the bus is high for a pe
 
 ![picture of a low period followed by data](images/physical.svg)
 
-[Back to top](#protocol-overview)
+
 
 ## Physical Layer Timings
 
 This section specifies expected and maximum timings at the physical layer. If any of the following timings are violated, devices must enter an error state and resume listening for frames once the bus idle period has been detected
 
-[Back to top](#protocol-overview)
+
 
 ### Bus Idle Spacing
 
@@ -159,7 +159,7 @@ If a device chooses to ignore a packet or an error condition is detected when re
 
 An idle bus is defined as no activity (line hi) for 2 bytes at 125kbaud (160 microseconds).
 
-[Back to top](#protocol-overview)
+
 
 ### InterLoData Spacing
 
@@ -167,7 +167,7 @@ The minimum time before data can be sent after a lo pulse is 40 microseconds, an
 
 ![diagram of the maximum spacing between bytes](images/interlodata-spacing.svg)
 
-[Back to top](#protocol-overview)
+
 
 ### Interbyte Spacing
 
@@ -175,7 +175,7 @@ The maximum permitted time between bytes is two bytes at the minimum baud rate (
 
 ![diagram of the maximum spacing between bytes](images/interbyte-spacing.svg)
 
-[Back to top](#protocol-overview)
+
 
 ### Interframe Spacing
 
@@ -183,7 +183,7 @@ The minimum space between frames is two bytes at the minimum baud rate (125KBaud
 
 ![diagram of the maximum spacing between frames](images/interframe-spacing.svg)
 
-[Back to top](#protocol-overview)
+
 
 ## Error Detection and Recovery
 
@@ -195,7 +195,7 @@ A state diagram for error detection when receiving a packet is shown below:
 
 ![Error state state diagram](images/error-state.svg)
 
-[Back to top](#protocol-overview)
+
 
 ## Preventing Bus Collisions
 
@@ -216,7 +216,7 @@ If two devices begin the lo pulse at exactly the same time, the UART module on t
 
 <!-- ![diagram of bad bus collision](images/bus-collision-bad.svg) -->
 
-[Back to top](#protocol-overview)
+
 
 # Control Layer
 
@@ -281,7 +281,7 @@ The data field of a ControlPacket should be parsed as follows:
       - Is `offset` >= `advertisement_size`? If no go to 2.
   4) Finished
 
-[Back to top](#protocol-overview)
+
 
 ## Device Address Allocation
 
@@ -291,7 +291,7 @@ When enumerating, devices must propose an address to use by setting the `device_
 
 After two ControlPackets without rejection, a proposing device is considered bound to that address. A bound address is indicated by the absence of the `PROPOSAL` flag.
 
-[Back to top](#protocol-overview)
+
 
 ## Device Address Collisions
 
@@ -301,7 +301,7 @@ On the occurrence of an address collision, the device that detected the collidin
 
 Less capable MCUs that are unable to receive ControlPackets at higher baud rates (and thus won't detect an address collision) will remain on their addresses, whilst more capable MCUs will be forced to re-enumerate on the bus.
 
-[Back to top](#protocol-overview)
+
 
 ### Device Removal
 
@@ -353,7 +353,7 @@ JACDAC Packet:
 
 By maintaining a small amount of state, minimal metadata is placed in a JACDAC packet allowing more space for service data.
 
-[Back to top](#protocol-overview)
+
 
 <!-- ## Pairing Devices? -->
 
@@ -387,7 +387,7 @@ The three modes above allow two communication paradigms to be achieved:
 
 <!-- Single control over another device (as in I2C) will be covered [later in this document](#pairing-devices). -->
 
-[Back to top](#protocol-overview)
+
 
 ## HostServices
 
@@ -401,7 +401,7 @@ When a HostService receives a packet, it has no ability to determine the source 
 
 Devices can enumerate up to 16 HostServices on the bus.
 
-[Back to top](#protocol-overview)
+
 
 ## ClientServices
 
@@ -415,7 +415,7 @@ When a service has stored routing information to a service running on another de
 
 When sending packet to a bound host, a ClientService must use the `device_address` and `service_number` of the bound host. In this sense, a ClientService can be thought of as a stub of a HostService.
 
-[Back to top](#protocol-overview)
+
 
 ## Broadcast
 
@@ -431,7 +431,7 @@ In the example above, the Control Layer on device 50 is not maintaining the stat
 
 The device on the right of the diagram is running the MessageBus service in Broadcast Client mode, is not enumerated, and is bound to the MessageBus service of device 20. In this case, the MessageBus service is already maintaining the state of device 20 and a mapping is not required. However, the Control Layer of this device must maintain the state of device 50 to route packets packets correctly.
 
-[Back to top](#protocol-overview)
+
 
 ## Addressing
 
@@ -475,7 +475,7 @@ The diagram above shows a Broadcast Host Service sending a packet using the `dev
 
 The diagram above shows a Broadcast Client Service sending a packet using the `device_address` 20 and `service_number` of 0. The packet is received by device 20 using Host addressing and by device 50 using broadcast addressing.
 
-[Back to top](#protocol-overview)
+
 
 <!-- ## Pairing Devices
 
